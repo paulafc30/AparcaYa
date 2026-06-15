@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Datos procesados (se regeneran en cada run del Action)
+data/processed/
+data/raw/
+
+# Dataset histórico grande (subir solo si < 100 MB o usar Git LFS)
+# data/dataset_historico_aparcaya.csv
+
+# Credenciales y variables de entorno
+.env
+.env.local
+*.pem
+secrets.json
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (por si se añade build en el futuro)
+node_modules/
+package-lock.json

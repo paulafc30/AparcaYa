@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AparcaYa – Aparcamiento inteligente en Málaga</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+
+<header>
+  <div class="logo">Aparca<span>Ya</span></div>
+  <div class="header-right">
+    <div>🅿️ 10 aparcamientos municipales · Málaga</div>
+    <div>Última actualización: <span id="last-update">–</span></div>
+  </div>
+</header>
+
+<div class="main">
+
+  <div class="sidebar">
+    <div class="sidebar-title">🅿️ Ocupación en tiempo real</div>
+    <div id="parking-list"><div class="loading">Cargando datos...</div></div>
+  </div>
+
+  <div class="right">
+    <div id="map"></div>
+
+    <div class="chat">
+      <div class="chat-header">
+        <div class="dot"></div>
+        Asistente AparcaYa — ¿Dónde vas?
+      </div>
+      <div class="msgs" id="msgs">
+        <div class="msg bot">
+          ¡Hola! Dime a dónde vas en Málaga y te recomiendo el parking más cercano con plazas disponibles 🚗<br>
+          <span style="opacity:.7;font-size:11px">Ej: "Voy a la Catedral" · "Desde Benalmádena al Centro" · "Hospital Carlos Haya"</span>
+        </div>
+      </div>
+      <div class="chat-input">
+        <input id="chat-in" type="text"
+          placeholder="¿A dónde vas en Málaga?"
+          onkeydown="if(event.key==='Enter') enviar()"/>
+        <button onclick="enviar()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Librerías externas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Módulos de la app (orden importante) -->
+<script src="js/catalogo.js"></script>
+<script src="js/prediccion.js"></script>
+<script src="js/mapa.js"></script>
+<script src="js/chatbot.js"></script>
+<script src="js/datos.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

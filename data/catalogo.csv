@@ -1,0 +1,11 @@
+id,nombre,direccion,latitude,longitude,altitud,capacidad_total
+CE,Cervantes,Calle Cervantes Málaga,36.7208633,-4.4119148,9.531203,400
+PA,El Palo,Calle Alonso Carrillo De Albornoz Málaga,36.721035,-4.3607192,8.069582,120
+AN,Av. de Andalucía,Avenida De Andalucía Málaga,36.7173271,-4.427712,7.358632,550
+CA,Camas,Calle Camas Málaga,36.7202072,-4.4244981,7.589293,250
+AL,Alcazaba,Plaza La Alcazaba Málaga,36.7224312,-4.4165168,14.149522,200
+SJ,San Juan De La Cruz,Compositor Lemberg Ruiz 29007 Málaga,36.717865,-4.4332781,8.787301,450
+MA,Pz. de la Marina,Plaza De La Marina Málaga,36.7174149,-4.4200468,3.109754,180
+TE,Tejón y Rodriguez,Calle Tejón Y Rodriguez Málaga,36.7235985,-4.4214821,10.485368,100
+CY,Carlos Haya,Avenida de Santa Rosa de Lima 4,36.71192991,-4.44097,0,400
+PB,Pío Baroja,Avenida Pío Baroja El Palo Málaga,36.7210350,-4.3607192,8.069582,200

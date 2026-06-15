@@ -1,0 +1,39 @@
+name: Fetch parking data
+
+on:
+  schedule:
+    # Cada 5 minutos (mínimo permitido por GitHub Actions)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:   # Permite lanzarlo manualmente desde la web
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r python/requirements.txt
+
+      - name: Run ingesta
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python python/main.py --once
+
+      - name: Upload estado_actual.json as artifact (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: estado-actual
+          path: data/processed/estado_actual.json
+          retention-days: 1

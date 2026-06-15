@@ -1,0 +1,19 @@
+# ParkMálaga – dependencias Python
+# Instalar con: pip install -r requirements.txt
+
+# Descarga de datos
+requests==2.32.3
+
+# Procesado de datos
+pandas==2.2.2
+numpy==1.26.4
+
+# Modelo de clasificación
+scikit-learn==1.5.0
+joblib==1.4.2          # serialización del modelo (.pkl)
+
+# API bridge con Java (escritura JSON ya incluida en stdlib)
+# Para Power BI: exportación via CSV/JSON (también stdlib)
+
+# Opcional: scheduling avanzado (alternativa al while+sleep del main.py)
+APScheduler==3.10.4
