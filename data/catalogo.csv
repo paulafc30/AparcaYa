@@ -1,11 +1,11 @@
-id,nombre,direccion,latitude,longitude,altitud,capacidad_total
-CE,Cervantes,Calle Cervantes Málaga,36.7208633,-4.4119148,9.531203,400
-PA,El Palo,Calle Alonso Carrillo De Albornoz Málaga,36.721035,-4.3607192,8.069582,120
-AN,Av. de Andalucía,Avenida De Andalucía Málaga,36.7173271,-4.427712,7.358632,550
-CA,Camas,Calle Camas Málaga,36.7202072,-4.4244981,7.589293,250
-AL,Alcazaba,Plaza La Alcazaba Málaga,36.7224312,-4.4165168,14.149522,200
-SJ,San Juan De La Cruz,Compositor Lemberg Ruiz 29007 Málaga,36.717865,-4.4332781,8.787301,450
-MA,Pz. de la Marina,Plaza De La Marina Málaga,36.7174149,-4.4200468,3.109754,180
-TE,Tejón y Rodriguez,Calle Tejón Y Rodriguez Málaga,36.7235985,-4.4214821,10.485368,100
-CY,Carlos Haya,Avenida de Santa Rosa de Lima 4,36.71192991,-4.44097,0,400
-PB,Pío Baroja,Avenida Pío Baroja El Palo Málaga,36.7210350,-4.3607192,8.069582,200
+id,nombre,direccion,latitude,longitude,capacidad_total
+CE,Cervantes,Calle Cervantes Málaga,36.7197,-4.4105,409
+MA,Salitre,Calle Salitre Málaga,36.7131,-4.4278,435
+CA,Camas,Calle Camas Málaga,36.7127,-4.4254,350
+PA,El Palo,Calle Alonso Carrillo Málaga,36.7210,-4.3609,127
+AN,Av. de Andalucía,Avenida de Andalucía Málaga,36.7171,-4.4279,613
+TE,Tejón y Rodríguez,Calle Tejón y Rodríguez Málaga,36.7174,-4.4214,187
+AL,Alcazaba,Calle Alcazabilla Málaga,36.7224,-4.4165,378
+SJ,San Juan de la Cruz,Calle Lemberg Ruiz Málaga,36.7179,-4.4333,624
+CY,Carlos Haya,Avenida Santa Rosa de Lima Málaga,36.7162,-4.4488,439
+PB,Pío Baroja,Avenida Pío Baroja El Palo Málaga,36.7204,-4.3644,261

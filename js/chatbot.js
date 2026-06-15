@@ -1,7 +1,24 @@
 /**
  * chatbot.js
+ * ===========
  * Asistente conversacional de AparcaYa.
- * Sistema basado en reglas: keywords → parking más cercano o más adecuado.
+ *
+ * ¿Cómo funciona?
+ *   No usa ninguna IA de lenguaje (ChatGPT, etc.) — sería necesaria una API de pago.
+ *   En su lugar usa un sistema de reglas basado en keywords (palabras clave):
+ *     1. El usuario escribe algo (ej: "voy al Hospital Carlos Haya")
+ *     2. Buscamos esas palabras en el diccionario DESTINOS
+ *     3. Devolvemos el parking más adecuado para ese destino
+ *     4. Si el usuario viene de fuera de Málaga (ej: "desde Benalmádena"),
+ *        calculamos cuánto tardará en llegar y predecimos la ocupación a esa hora
+ *
+ *   El algoritmo de búsqueda prueba combinaciones de palabras de longitud decreciente
+ *   para encontrar la coincidencia más larga posible (más específica).
+ *
+ * Funciones que exporta:
+ *   - enviar()   → lee el input, añade el mensaje del usuario y genera respuesta del bot
+ *
+ * Depende de: catalogo.js (CAT), prediccion.js (predecirHora, estado, colorEstado), mapa.js (focusPark)
  */
 
 // ── Destinos de Málaga → parking recomendado ─────────────────────────────────
@@ -200,6 +217,8 @@ const DESTINOS = {
 };
 
 // ── Orígenes (tiempo de viaje estimado en minutos) ───────────────────────────
+// Si el usuario dice "vengo desde Benalmádena", buscamos su origen aquí
+// para saber cuántos minutos tardará en llegar y predecir la ocupación a esa hora.
 const ORIGENES = {
   'benalmádena':   20, 'benalmadena':  20,
   'torremolinos':  18, 'torremolinos': 18,
@@ -228,6 +247,12 @@ const ORIGENES = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Añade un mensaje al panel del chat.
+ * @param {string} texto - Contenido HTML del mensaje
+ * @param {string} tipo  - 'bot' (burbuja izquierda gris) | 'user' (burbuja derecha azul)
+ */
 function addMsg(texto, tipo) {
   const el = document.createElement('div');
   el.className = 'msg ' + tipo;
@@ -236,8 +261,12 @@ function addMsg(texto, tipo) {
   document.getElementById('msgs').scrollTop = 99999;
 }
 
+/**
+ * Devuelve los IDs de todos los parkings ordenados de menor a mayor ocupación.
+ * Útil para sugerir alternativas cuando el recomendado estará lleno.
+ * @returns {string[]} Array de IDs ordenados, ej: ['PA', 'PB', 'CE', ...]
+ */
 function rankParks() {
-  // Devuelve IDs de parkings ordenados: primero los más libres
   const estado_actual = window._datosActuales || {};
   return Object.keys(CAT).sort((a, b) => {
     const pa = estado_actual[a]?.pct ?? 0.5;
@@ -246,6 +275,17 @@ function rankParks() {
   });
 }
 
+/**
+ * Construye el mensaje HTML de respuesta recomendando un parking.
+ * Incluye: estado actual, plazas libres, % ocupado, predicción de llegada,
+ * enlace "Ver en mapa" y alternativa si se prevé lleno.
+ * También llama a focusPark() para centrar el mapa automáticamente.
+ *
+ * @param {string} parkId       - ID del parking recomendado
+ * @param {string} label        - Nombre del destino (para mostrar al usuario)
+ * @param {number|null} minutosViaje - Tiempo de viaje si el usuario viene de fuera
+ * @returns {string} HTML del mensaje del bot
+ */
 function respuestaParking(parkId, label, minutosViaje) {
   const datos  = window._datosActuales || {};
   const d      = datos[parkId];
@@ -296,6 +336,19 @@ function respuestaParking(parkId, label, minutosViaje) {
 }
 
 // ── Motor de respuesta ────────────────────────────────────────────────────────
+/**
+ * Motor principal del chatbot: analiza el texto del usuario y devuelve la respuesta.
+ *
+ * Pasos:
+ *   1. Detectar origen (¿viene de Benalmádena, Torremolinos...?)
+ *   2. Buscar destino: prueba combinaciones de palabras de más a menos específicas
+ *      hasta encontrar una coincidencia en el diccionario DESTINOS
+ *   3. Si no hay destino conocido, responde a frases genéricas (hola, gracias, etc.)
+ *   4. Si no entiende nada, muestra ejemplos de uso
+ *
+ * @param {string} texto - Mensaje escrito por el usuario
+ * @returns {string} HTML de la respuesta del bot
+ */
 function buscarEnTexto(texto) {
   const t = texto.toLowerCase().trim();
 
