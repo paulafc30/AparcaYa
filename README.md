@@ -1,7 +1,7 @@
 # AparcaYa 🅿️
 
 **Asistente inteligente de aparcamiento para Málaga**  
-Proyecto final · Curso IA & Big Data · Presentación 25 jun 2026
+Proyecto final · Curso IA & Big Data · Presentación 17 y 25 jun 2026
 
 ---
 
