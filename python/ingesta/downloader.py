@@ -49,8 +49,20 @@ def descargar_ocupacion() -> pd.DataFrame:
     Guarda también una copia en data/raw/ocupacion_<YYYYMMDD_HHMMSS>.csv
     para construir el histórico de entrenamiento.
     """
+    # El servidor del Ayuntamiento bloquea peticiones sin cabeceras de navegador.
+    # Con estas cabeceras acepta la conexión desde GitHub Actions.
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.9",
+        "Referer": "https://datosabiertos.malaga.eu/",
+    }
     try:
-        response = requests.get(URL_OCUPACION, timeout=TIMEOUT)
+        response = requests.get(URL_OCUPACION, headers=headers, timeout=TIMEOUT)
         response.raise_for_status()
     except requests.RequestException as e:
         logger.error(f"Error descargando ocupación: {e}")
@@ -93,7 +105,7 @@ def descargar_catalogo() -> pd.DataFrame:
         return pd.read_csv(ruta_local)
 
     try:
-        response = requests.get(URL_CATALOGO, timeout=TIMEOUT)
+        response = requests.get(URL_CATALOGO, headers=headers, timeout=TIMEOUT)
         response.raise_for_status()
     except requests.RequestException as e:
         logger.error(f"Error descargando catálogo: {e}")

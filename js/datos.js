@@ -23,18 +23,24 @@
 
 // ── Configuración ─────────────────────────────────────────────────────────────
 // URL del CSV oficial del Ayuntamiento de Málaga (datos abiertos, actualización ~1 min)
+// El servidor bloquea proxies cloud (403); desde navegadores reales suele funcionar directamente.
 const URL_CSV =
-  'https://datosabiertos.malaga.eu/recursos/transporte/estacionamiento/ocupacion-aparcamientos/ocupacionAparcamientos.csv';
+  'https://datosabiertos.malaga.eu/recursos/aparcamientos/ocupappublicosmun/ocupappublicosmun.csv';
 
-// Proxy para evitar el bloqueo CORS del navegador al acceder a dominios externos
-// CORS = "Cross-Origin Resource Sharing": los navegadores bloquean peticiones
-// a dominios distintos al de la propia web por seguridad. El proxy actúa de intermediario.
-const PROXY = 'https://api.allorigins.win/raw?url=';
+// Proxies CORS en cascada — se prueban en orden hasta que uno funcione
+const PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest=',
+];
 
-// Supabase (sustituir por los valores reales del proyecto)
-const SUPABASE_URL = 'https://nbjkulgjeshzdnxxcohc.supabase.co';
-const SUPABASE_KEY = 'sb_secret_gwzAIzwHnqlBdQvlbAIhIA__ndkGfVv';
+// Supabase — sustituir SUPABASE_KEY por la anon key real del proyecto en supabase.co
+const SUPABASE_URL   = 'https://nbjkulgjeshzdnxxcohc.supabase.co';
+const SUPABASE_KEY   = 'sb_secret_gwzAIzwHnqlBdQvlbAIhIA__ndkGfVv';  // ← reemplazar
 const SUPABASE_TABLA = 'parking_estado';
+
+// Detecta si la key es el placeholder para saltar Supabase directamente
+const SUPABASE_ACTIVO = SUPABASE_KEY && !SUPABASE_KEY.startsWith('sb_secret_');
 
 // ── Almacén global de datos actuales ─────────────────────────────────────────
 // Guardamos los datos en window._datosActuales para que chatbot.js pueda
@@ -107,20 +113,28 @@ function parsearCSV(csv) {
   });
   const datos = {};
   result.data.forEach((row) => {
-    // Intentamos columnas habituales del CSV de Málaga
-    const nombre = row['Nombre'] || row['nombre'] || row['NOMBRE'] || '';
-    const libres = parseInt(
-      row['Libres'] || row['libres'] || row['LIBRES'] || 0,
-    );
-    const ocupados = parseInt(
-      row['Ocupados'] || row['ocupados'] || row['OCUPADOS'] || 0,
-    );
+    // El CSV del Ayuntamiento usa columna 'id' (código) y 'libres' (plazas libres).
+    // Formato verificado: ocupappublicosmun.csv → columnas: dato, id, libres, ...
+    const id = (row['id'] || row['ID'] || '').toString().trim().toUpperCase();
+    const libres = parseInt(row['libres'] || row['Libres'] || row['LIBRES'] || 0);
 
-    const id = NOMBRE_A_ID[nombre.trim()];
-    if (!id) return;
+    if (!id || !CAT[id]) {
+      // Fallback: si no hay columna 'id', intentar mapear por nombre
+      const nombre = row['Nombre'] || row['nombre'] || row['dato'] || '';
+      const idPorNombre = NOMBRE_A_ID[nombre.trim()];
+      if (!idPorNombre) return;
+      const cap2 = CAT[idPorNombre]?.cap || 1;
+      const libresPorNombre = parseInt(row['libres'] || row['Libres'] || 0);
+      const ocupados2 = parseInt(row['Ocupados'] || row['ocupados'] || 0);
+      const pct2 = libresPorNombre > 0
+        ? Math.min(1, (cap2 - libresPorNombre) / cap2)
+        : Math.min(1, ocupados2 / cap2);
+      datos[idPorNombre] = { libres: libresPorNombre, pct: pct2, tendencia: 0 };
+      return;
+    }
 
-    const cap = CAT[id]?.cap || libres + ocupados || 1;
-    const pct = Math.min(1, ocupados / cap);
+    const cap = CAT[id].cap;
+    const pct = Math.min(1, Math.max(0, (cap - libres) / cap));
     datos[id] = { libres, pct, tendencia: 0 };
   });
   return datos;
@@ -167,20 +181,29 @@ async function cargarDesdeSupabase() {
  * @throws {Error} Si ambos intentos fallan
  */
 async function cargarDesdeCSV() {
-  let csv;
+  // 1. Intento directo (funciona si hay CORS permisivo o desde el mismo dominio)
   try {
     const r = await fetch(URL_CSV, { cache: 'no-store' });
-    if (!r.ok) throw new Error('direct fetch failed');
-    csv = await r.text();
-  } catch {
-    // Fallback: proxy allorigins
-    const r2 = await fetch(PROXY + encodeURIComponent(URL_CSV), {
-      cache: 'no-store',
-    });
-    if (!r2.ok) throw new Error('proxy failed');
-    csv = await r2.text();
+    if (r.ok) {
+      const csv = await r.text();
+      const d = parsearCSV(csv);
+      if (Object.keys(d).length > 0) return d;
+    }
+  } catch { /* sigue al proxy */ }
+
+  // 2. Proxies CORS en cascada
+  for (const proxy of PROXIES) {
+    try {
+      const r = await fetch(proxy + encodeURIComponent(URL_CSV), { cache: 'no-store' });
+      if (r.ok) {
+        const csv = await r.text();
+        const d = parsearCSV(csv);
+        if (Object.keys(d).length > 0) return d;
+      }
+    } catch { /* prueba el siguiente proxy */ }
   }
-  return parsearCSV(csv);
+
+  throw new Error('CSV no disponible por ninguna vía');
 }
 
 // ── Función principal de carga ────────────────────────────────────────────────
@@ -201,17 +224,30 @@ async function cargar() {
   let datos = null;
   let fuente = '';
 
-  try {
-    datos = await cargarDesdeSupabase();
-    fuente = 'Supabase';
-  } catch {
+  // 1. Supabase — solo si la key está configurada con un valor real
+  if (SUPABASE_ACTIVO) {
+    try {
+      datos = await cargarDesdeSupabase();
+      fuente = 'Supabase';
+    } catch (e) {
+      console.warn('[datos] Supabase falló:', e.message);
+    }
+  }
+
+  // 2. CSV del Ayuntamiento (fuente principal cuando Supabase no está activo)
+  if (!datos) {
     try {
       datos = await cargarDesdeCSV();
       fuente = 'Ayuntamiento';
-    } catch {
-      datos = datosDemo();
-      fuente = 'demo';
+    } catch (e) {
+      console.warn('[datos] CSV falló:', e.message);
     }
+  }
+
+  // 3. Demo — solo como último recurso
+  if (!datos) {
+    datos = datosDemo();
+    fuente = 'demo';
   }
 
   // Completar parkings sin datos con fallback de patrones
@@ -238,9 +274,28 @@ async function cargar() {
  */
 function actualizarUI(datos, fuente) {
   const now = new Date();
-  document.getElementById('last-update').textContent =
-    now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) +
-    (fuente ? ` (${fuente})` : '');
+  const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const esDemo = fuente === 'demo';
+
+  // Timestamp con fuente de datos
+  const labelFuente = fuente === 'Supabase'     ? '🟢 Supabase'
+                    : fuente === 'Ayuntamiento'  ? '🟢 Ayuntamiento'
+                    : '🟡 Simulación';
+  document.getElementById('last-update').textContent = `${hora} · ${labelFuente}`;
+
+  // Banner de aviso si estamos en modo simulación
+  let banner = document.getElementById('demo-banner');
+  if (esDemo) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'demo-banner';
+      banner.style.cssText = 'background:#fef3c7;color:#92400e;font-size:11px;padding:6px 14px;text-align:center;border-bottom:1px solid #fcd34d;';
+      document.querySelector('.sidebar').prepend(banner);
+    }
+    banner.textContent = '⚠️ Sin conexión con el Ayuntamiento — mostrando estimación por patrones horarios';
+  } else if (banner) {
+    banner.remove();
+  }
 
   // Tarjetas del sidebar
   const lista = document.getElementById('parking-list');
