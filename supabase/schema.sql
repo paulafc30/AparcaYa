@@ -64,3 +64,50 @@ CREATE TABLE IF NOT EXISTS parking_historico (
 
 CREATE INDEX IF NOT EXISTS idx_historico_parking_dia
   ON parking_historico (parking_id, dia_semana, hora);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Tabla de predicciones ML (generadas por predict.py cada 5 min)
+-- El frontend las lee desde prediccion.js para mostrar la predicción de IA.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS parking_predicciones (
+  id               BIGSERIAL    PRIMARY KEY,
+  ts               TIMESTAMPTZ  NOT NULL DEFAULT NOW(),  -- cuándo se generó
+  parking_id       TEXT         NOT NULL,                -- CE, MA, CA...
+  horizonte_horas  SMALLINT     NOT NULL,                -- 1, 2 ó 3 horas
+  libres_previstas INTEGER      NOT NULL,                -- plazas libres predichas
+  pct_prevista     NUMERIC(5,4) NOT NULL,                -- % ocupación predicha
+  estado_previsto  TEXT         NOT NULL,                -- LIBRE | DISPONIBLE | LLENO
+  hora_prediccion  SMALLINT     NOT NULL,                -- hora del día objetivo (0-23)
+  confianza        TEXT         NOT NULL DEFAULT 'media', -- alta | media | baja (según R²)
+  modelo_r2        NUMERIC(6,4) NOT NULL DEFAULT 0       -- R² del modelo usado
+);
+
+-- Índices: el frontend siempre pide las predicciones más recientes por parking
+CREATE INDEX IF NOT EXISTS idx_predicciones_ts
+  ON parking_predicciones (ts DESC);
+CREATE INDEX IF NOT EXISTS idx_predicciones_parking_horizonte
+  ON parking_predicciones (parking_id, horizonte_horas, ts DESC);
+
+-- Vista: última predicción disponible por parking y horizonte
+CREATE OR REPLACE VIEW parking_prediccion_ultima AS
+SELECT DISTINCT ON (parking_id, horizonte_horas)
+  parking_id,
+  horizonte_horas,
+  libres_previstas,
+  pct_prevista,
+  estado_previsto,
+  hora_prediccion,
+  confianza,
+  modelo_r2,
+  ts
+FROM parking_predicciones
+ORDER BY parking_id, horizonte_horas, ts DESC;
+
+-- RLS: lectura pública, escritura solo service_role
+ALTER TABLE parking_predicciones ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Lectura pública predicciones" ON parking_predicciones
+  FOR SELECT USING (true);
+
+CREATE POLICY "Escritura service role predicciones" ON parking_predicciones
+  FOR INSERT WITH CHECK (auth.role() = 'service_role');

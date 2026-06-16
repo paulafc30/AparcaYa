@@ -141,26 +141,42 @@ def ciclo() -> None:
         # 2. Procesado
         df = procesar(df_raw)
 
-        # 3. Predicción (opcional: solo si el modelo está entrenado)
-        modelo_path = PROJECT_ROOT / "python" / "modelo" / "model.pkl"
-        if modelo_path.exists():
-            try:
-                from modelo.predict import predecir
-                df = predecir(df)
-                logger.info("Predicciones de IA aplicadas.")
-            except Exception as e:
-                logger.warning(f"Predicción omitida: {e}")
-        else:
-            logger.info("Modelo aún no entrenado — predicción omitida.")
-
-        # 4. Exportar JSON
+        # 3. Exportar JSON con estado actual
         exportar_json(df)
 
-        # 5. Push a Supabase (si hay credenciales disponibles)
+        # 4. Push estado actual a Supabase
         try:
             subir_supabase(df)
         except Exception as e:
-            logger.warning(f"Supabase push omitido: {e}")
+            logger.warning(f"Supabase estado omitido: {e}")
+
+        # 5. Predicciones ML (solo si el modelo está entrenado)
+        modelo_path = PROJECT_ROOT / "python" / "modelo" / "model.pkl"
+        if modelo_path.exists():
+            try:
+                from modelo.predict import predecir_todos, subir_predicciones_supabase
+
+                # Construimos el dict de estado actual para el predictor
+                datos_actuales = {
+                    row["id"]: {
+                        "pct":    float(row.get("pct_ocupacion", 0.5)),
+                        "libres": int(row.get("libres", 0)),
+                    }
+                    for _, row in df.iterrows() if row.get("id")
+                }
+
+                predicciones = predecir_todos(datos_actuales, horizontes=[1, 2, 3])
+
+                try:
+                    subir_predicciones_supabase(predicciones)
+                except Exception as e:
+                    logger.warning(f"Supabase predicciones omitidas: {e}")
+
+                logger.info(f"Predicciones ML generadas: {len(predicciones)}")
+            except Exception as e:
+                logger.warning(f"Módulo de predicción falló: {e}")
+        else:
+            logger.info("Modelo no entrenado — ejecuta train.py primero.")
 
         logger.info("── Ciclo completado ────────────────────────────────────")
 

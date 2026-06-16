@@ -32,11 +32,18 @@ window.addEventListener('load', async () => {
   // 1. Crear el mapa interactivo en el div #map del HTML
   initMapa();
 
-  // 2. Primera carga de datos: rellena tarjetas del sidebar y marcadores del mapa
+  // 2. Descarga predicciones ML de Supabase antes de renderizar (async, no bloquea)
+  //    Si Supabase no está disponible, textoPrediccion() usará el fallback de patrones.
+  cargarPredicciones().catch(() => {});
+
+  // 3. Primera carga de datos: rellena tarjetas del sidebar y marcadores del mapa
   //    Usamos 'await' para esperar a que termine antes de activar el intervalo
   await cargar();
 
-  // 3. Programa las actualizaciones automáticas cada minuto
-  //    setInterval llama a cargar() de forma repetida sin bloquear la página
-  setInterval(cargar, INTERVALO_MS);
+  // 4. Programa las actualizaciones automáticas cada minuto
+  //    Cada ciclo también renueva las predicciones ML para que no queden obsoletas.
+  setInterval(async () => {
+    cargarPredicciones().catch(() => {});
+    await cargar();
+  }, INTERVALO_MS);
 });
