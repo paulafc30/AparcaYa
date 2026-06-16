@@ -36,7 +36,7 @@
  * @returns {string}
  */
 function estado(pct) {
-  if (pct >= 0.85) return 'LLENO';
+  if (pct >= 0.90) return 'LLENO';
   if (pct >= 0.50) return 'DISPONIBLE';
   return 'LIBRE';
 }
@@ -48,7 +48,7 @@ function estado(pct) {
  * @returns {string} Color en hex
  */
 function colorEstado(pct) {
-  if (pct >= 0.85) return '#ef4444';  // rojo
+  if (pct >= 0.90) return '#ef4444';  // rojo
   if (pct >= 0.50) return '#eab308';  // amarillo
   return '#22c55e';                    // verde
 }
