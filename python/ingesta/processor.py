@@ -10,8 +10,8 @@ Procesa los datos de ocupación descargados con pandas y numpy:
 
 Clases de ocupación:
     LIBRE       →  ocupación < 50%
-    DISPONIBLE  →  50% ≤ ocupación < 85%
-    LLENO       →  ocupación ≥ 85%
+    DISPONIBLE  →  50% ≤ ocupación < 90%
+    LLENO       →  ocupación ≥ 90%
 """
 
 import pandas as pd
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # ── Umbrales de clasificación ──────────────────────────────────────────────────
 
-UMBRAL_LLENO      = 0.85   # ≥ 85% ocupado → LLENO
+UMBRAL_LLENO      = 0.90   # ≥ 90% ocupado → LLENO
 UMBRAL_DISPONIBLE = 0.50   # ≥ 50% ocupado → DISPONIBLE  (por debajo → LIBRE)
 
 # ── Funciones ─────────────────────────────────────────────────────────────────

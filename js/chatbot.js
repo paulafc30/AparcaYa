@@ -251,7 +251,7 @@ function respuestaParking(parkId, label, minutosViaje) {
     const pctLleg = predecirHora(parkId, d.pct, minutosViaje / 60);
     const eL = estado(pctLleg), cL = colorEstado(pctLleg);
     html += `<br>🕐 En ${minutosViaje} min, se prevé <span style="color:${cL};font-weight:700">${eL}</span> (${Math.round(pctLleg * 100)}%).`;
-    if (pctLleg >= 0.85) {
+    if (pctLleg >= 0.90) {
       const altId = rankParks().find(id => id !== parkId);
       if (altId) {
         const ca = CAT[altId], da = window._datosActuales?.[altId];
