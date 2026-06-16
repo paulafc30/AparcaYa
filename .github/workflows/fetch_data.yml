@@ -4,12 +4,12 @@ on:
   schedule:
     # Cada 5 minutos (mínimo permitido por GitHub Actions)
     - cron: '*/5 * * * *'
-  workflow_dispatch:   # Permite lanzarlo manualmente desde la web
+  workflow_dispatch:   # Permite lanzarlo manualmente desde la web de GitHub
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 8   # ampliado para dar margen al entrenamiento si hay cache miss
 
     steps:
       - name: Checkout repo
@@ -24,13 +24,41 @@ jobs:
       - name: Install dependencies
         run: pip install -r python/requirements.txt
 
-      - name: Run ingesta
+      # ── Caché del modelo ────────────────────────────────────────────────────
+      # El modelo solo se reentrena cuando cambia el dataset histórico.
+      # La clave de caché incluye el hash del CSV, así que si el archivo
+      # no cambia entre runs, el modelo se reutiliza sin reentrenar.
+      # Esto ahorra ~15 segundos de cómputo en cada ciclo de 5 min.
+      - name: Cache modelo Random Forest
+        id: cache-modelo
+        uses: actions/cache@v4
+        with:
+          path: python/modelo/model.pkl
+          key: modelo-rf-${{ hashFiles('data/dataset_historico_aparcaya.csv') }}
+
+      - name: Entrenar modelo (solo si no hay caché o el dataset cambió)
+        if: steps.cache-modelo.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache miss — entrenando modelo..."
+          python python/modelo/train.py --horizonte 1
+          echo "Modelo entrenado y guardado en python/modelo/model.pkl"
+
+      - name: Confirmar modelo listo
+        run: |
+          if [ -f python/modelo/model.pkl ]; then
+            echo "✅ Modelo disponible ($(du -sh python/modelo/model.pkl | cut -f1))"
+          else
+            echo "⚠️ Modelo no encontrado — las predicciones usarán patrones de fallback"
+          fi
+
+      # ── Ingesta y predicciones ──────────────────────────────────────────────
+      - name: Run ingesta + predicciones
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python python/main.py --once
 
-      - name: Upload estado_actual.json as artifact (debug)
+      - name: Upload estado_actual.json como artefacto (debug)
         if: always()
         uses: actions/upload-artifact@v4
         with:

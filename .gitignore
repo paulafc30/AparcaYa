@@ -13,6 +13,11 @@ build/
 data/processed/
 data/raw/
 
+# Modelo entrenado — se regenera automáticamente en el GitHub Action
+# No subir al repo: pesa ~25 MB y se puede reproducir con train.py
+python/modelo/*.pkl
+python/modelo/*.pkl.*
+
 # Dataset histórico grande (subir solo si < 100 MB o usar Git LFS)
 # data/dataset_historico_aparcaya.csv
 
