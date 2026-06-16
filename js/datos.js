@@ -23,16 +23,17 @@
 
 // ── Configuración ─────────────────────────────────────────────────────────────
 // URL del CSV oficial del Ayuntamiento de Málaga (datos abiertos, actualización ~1 min)
-const URL_CSV = 'https://datosabiertos.malaga.eu/recursos/transporte/estacionamiento/ocupacion-aparcamientos/ocupacionAparcamientos.csv';
+const URL_CSV =
+  'https://datosabiertos.malaga.eu/recursos/transporte/estacionamiento/ocupacion-aparcamientos/ocupacionAparcamientos.csv';
 
 // Proxy para evitar el bloqueo CORS del navegador al acceder a dominios externos
 // CORS = "Cross-Origin Resource Sharing": los navegadores bloquean peticiones
 // a dominios distintos al de la propia web por seguridad. El proxy actúa de intermediario.
-const PROXY   = 'https://api.allorigins.win/raw?url=';
+const PROXY = 'https://api.allorigins.win/raw?url=';
 
 // Supabase (sustituir por los valores reales del proyecto)
-const SUPABASE_URL  = 'https://TU_PROYECTO.supabase.co';
-const SUPABASE_KEY  = 'TU_ANON_KEY';
+const SUPABASE_URL = 'https://nbjkulgjeshzdnxxcohc.supabase.co';
+const SUPABASE_KEY = 'sb_secret_gwzAIzwHnqlBdQvlbAIhIA__ndkGfVv';
 const SUPABASE_TABLA = 'parking_estado';
 
 // ── Almacén global de datos actuales ─────────────────────────────────────────
@@ -49,22 +50,22 @@ window._datosActuales = {};
 // Verificado contra smassa.eu (junio 2026). El parking "Salitre" aparece
 // a veces como "Salitre" en el CSV, no como "Marina".
 const NOMBRE_A_ID = {
-  'Cervantes':           'CE',
-  'Salitre':             'MA',
-  'Camas':               'CA',
-  'El Palo':             'PA',
-  'Andalucia':           'AN',
-  'Andalucía':           'AN',
-  'Av. Andalucía':       'AN',
-  'Tejón y Rodríguez':   'TE',
-  'Tejon y Rodriguez':   'TE',
-  'Tejón':               'TE',
-  'Alcazaba':            'AL',
+  Cervantes: 'CE',
+  Salitre: 'MA',
+  Camas: 'CA',
+  'El Palo': 'PA',
+  Andalucia: 'AN',
+  Andalucía: 'AN',
+  'Av. Andalucía': 'AN',
+  'Tejón y Rodríguez': 'TE',
+  'Tejon y Rodriguez': 'TE',
+  Tejón: 'TE',
+  Alcazaba: 'AL',
   'San Juan de la Cruz': 'SJ',
-  'San Juan':            'SJ',
-  'Carlos Haya':         'CY',
-  'Pío Baroja':          'PB',
-  'Pio Baroja':          'PB',
+  'San Juan': 'SJ',
+  'Carlos Haya': 'CY',
+  'Pío Baroja': 'PB',
+  'Pio Baroja': 'PB',
 };
 
 // ── Datos de demostración (fallback) ─────────────────────────────────────────
@@ -76,13 +77,13 @@ const NOMBRE_A_ID = {
  * @returns {object} { CE: {libres, pct, tendencia}, MA: ..., ... }
  */
 function datosDemo() {
-  const now  = new Date();
+  const now = new Date();
   const hora = now.getHours();
-  const dia  = now.getDay();
+  const dia = now.getDay();
   const demo = {};
   Object.entries(CAT).forEach(([id, c]) => {
     const tipo = TIPO[id] || 'centro';
-    const pct  = PATRONES[tipo][hora][dia];
+    const pct = PATRONES[tipo][hora][dia];
     const libres = Math.round(c.cap * (1 - pct));
     demo[id] = { libres, pct, tendencia: 0 };
   });
@@ -105,11 +106,15 @@ function parsearCSV(csv) {
     dynamicTyping: true,
   });
   const datos = {};
-  result.data.forEach(row => {
+  result.data.forEach((row) => {
     // Intentamos columnas habituales del CSV de Málaga
-    const nombre   = row['Nombre'] || row['nombre'] || row['NOMBRE'] || '';
-    const libres   = parseInt(row['Libres'] || row['libres'] || row['LIBRES'] || 0);
-    const ocupados = parseInt(row['Ocupados'] || row['ocupados'] || row['OCUPADOS'] || 0);
+    const nombre = row['Nombre'] || row['nombre'] || row['NOMBRE'] || '';
+    const libres = parseInt(
+      row['Libres'] || row['libres'] || row['LIBRES'] || 0,
+    );
+    const ocupados = parseInt(
+      row['Ocupados'] || row['ocupados'] || row['OCUPADOS'] || 0,
+    );
 
     const id = NOMBRE_A_ID[nombre.trim()];
     if (!id) return;
@@ -141,7 +146,7 @@ async function cargarDesdeSupabase() {
   if (!resp.ok) throw new Error('Supabase error ' + resp.status);
   const rows = await resp.json();
   const datos = {};
-  rows.forEach(r => {
+  rows.forEach((r) => {
     if (!CAT[r.parking_id]) return;
     datos[r.parking_id] = {
       libres: r.libres,
@@ -169,7 +174,9 @@ async function cargarDesdeCSV() {
     csv = await r.text();
   } catch {
     // Fallback: proxy allorigins
-    const r2 = await fetch(PROXY + encodeURIComponent(URL_CSV), { cache: 'no-store' });
+    const r2 = await fetch(PROXY + encodeURIComponent(URL_CSV), {
+      cache: 'no-store',
+    });
     if (!r2.ok) throw new Error('proxy failed');
     csv = await r2.text();
   }
@@ -195,21 +202,21 @@ async function cargar() {
   let fuente = '';
 
   try {
-    datos  = await cargarDesdeSupabase();
+    datos = await cargarDesdeSupabase();
     fuente = 'Supabase';
   } catch {
     try {
-      datos  = await cargarDesdeCSV();
+      datos = await cargarDesdeCSV();
       fuente = 'Ayuntamiento';
     } catch {
-      datos  = datosDemo();
+      datos = datosDemo();
       fuente = 'demo';
     }
   }
 
   // Completar parkings sin datos con fallback de patrones
   const demo = datosDemo();
-  Object.keys(CAT).forEach(id => {
+  Object.keys(CAT).forEach((id) => {
     if (!datos[id]) datos[id] = demo[id];
   });
 
@@ -239,13 +246,13 @@ function actualizarUI(datos, fuente) {
   const lista = document.getElementById('parking-list');
   lista.innerHTML = '';
   Object.entries(CAT).forEach(([id, c]) => {
-    const d    = datos[id] || { libres: 0, pct: 0, tendencia: 0 };
-    const pct  = d.pct;
+    const d = datos[id] || { libres: 0, pct: 0, tendencia: 0 };
+    const pct = d.pct;
     const pctP = Math.round(pct * 100);
-    const div  = document.createElement('div');
+    const div = document.createElement('div');
     div.className = 'card';
-    div.id        = 'card-' + id;
-    div.onclick   = () => focusPark(id);
+    div.id = 'card-' + id;
+    div.onclick = () => focusPark(id);
     div.innerHTML = `
       <div class="card-top">
         <span class="card-name">${c.n}</span>
