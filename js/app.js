@@ -32,12 +32,11 @@ window.addEventListener('load', async () => {
   // 1. Crear el mapa interactivo en el div #map del HTML
   initMapa();
 
-  // 2. Descarga predicciones ML de Supabase antes de renderizar (async, no bloquea)
-  //    Si Supabase no está disponible, textoPrediccion() usará el fallback de patrones.
-  cargarPredicciones().catch(() => {});
+  // 2. Descarga predicciones ML de Supabase ANTES de renderizar las tarjetas.
+  //    Así las cards muestran [IA·alta] desde el primer render, no 60s después.
+  await cargarPredicciones().catch(() => {});
 
   // 3. Primera carga de datos: rellena tarjetas del sidebar y marcadores del mapa
-  //    Usamos 'await' para esperar a que termine antes de activar el intervalo
   await cargar();
 
   // 4. Programa las actualizaciones automáticas cada minuto
