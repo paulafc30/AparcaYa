@@ -92,39 +92,6 @@ AparcaYa/
 
 ---
 
-## Despliegue paso a paso
-
-### 1 · Supabase
-
-1. Crear proyecto en [app.supabase.com](https://app.supabase.com) (región Europe West).
-2. Abrir **SQL Editor** y ejecutar `supabase/schema.sql`.
-3. Anotar:
-   - `Project URL` → `SUPABASE_URL`
-   - `anon public key` → para el frontend en `js/datos.js`
-   - `service_role key` → solo en GitHub Secrets, **nunca en el repo**
-
-### 2 · GitHub Secrets
-
-En **Settings → Secrets → Actions** añadir:
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_KEY`
-
-### 3 · Vercel
-
-1. [vercel.com](https://vercel.com) → New Project → importar `paulafc30/AparcaYa`.
-2. Framework: **Other**. Root directory: `/`.
-3. Deploy → URL pública tipo `aparcaya.vercel.app`.
-
-### 4 · Conectar frontend con Supabase
-
-En `js/datos.js` sustituir los placeholders:
-```js
-const SUPABASE_URL = 'https://TU_PROYECTO.supabase.co';
-const SUPABASE_KEY = 'TU_ANON_KEY';
-```
-
----
-
 ## Flujo de trabajo con Git (resumen rápido)
 
 ```bash
