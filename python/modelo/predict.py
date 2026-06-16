@@ -132,17 +132,19 @@ def predecir_parking(parking_id: str, pct_actual: float,
 
     ahora       = datetime.now()
     hora_actual = ahora.hour
-    dia_semana  = ahora.weekday()           # 0=lunes … 6=domingo (Python)
-    # Convertimos al formato del dataset: 0=domingo … 6=sábado
-    dia_semana_ds = (dia_semana + 1) % 7
-    es_fin_semana = 1 if dia_semana_ds in (0, 6) else 0
+    # dt.dayofweek en pandas y datetime.weekday() en Python usan el mismo
+    # convenio: 0=lunes … 6=domingo. El modelo se entrenó con ese formato
+    # (pd.to_datetime(df["timestamp"]).dt.dayofweek en train.py), así que
+    # aquí debemos mandarlo sin conversiones adicionales.
+    dia_semana    = ahora.weekday()          # 0=lunes … 6=domingo
+    es_fin_semana = 1 if dia_semana >= 5 else 0   # 5=sáb, 6=dom
     mes           = ahora.month
     hora_futura   = (hora_actual + horizonte_horas) % 24
 
     # ── Vector de features (mismo orden que en train.py FEATURES) ────────────
     X = pd.DataFrame([{
         "hora":          hora_actual,
-        "dia_semana":    dia_semana_ds,
+        "dia_semana":    dia_semana,
         "es_fin_semana": es_fin_semana,
         "tipo_cod":      tipo_cod,
         "pct_actual":    pct_actual,

@@ -32,6 +32,34 @@ RAW_DIR.mkdir(parents=True, exist_ok=True)
 
 TIMEOUT = 10  # segundos
 
+# Cabeceras comunes — a nivel de módulo para que las usen ambas funciones.
+# El servidor del Ayuntamiento bloquea peticiones sin cabeceras de navegador.
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "es-ES,es;q=0.9",
+    "Referer": "https://datosabiertos.malaga.eu/",
+}
+
+# Capacidades de rotación verificadas en smassa.eu (junio 2026).
+# Deben coincidir con CAPACIDADES en predict.py y cap en catalogo.js.
+CAPACIDADES = {
+    "CE": 409,  # Cervantes
+    "MA": 435,  # Salitre
+    "CA": 350,  # Camas
+    "PA": 127,  # El Palo
+    "AN": 613,  # Av. de Andalucía
+    "TE": 187,  # Tejón y Rodríguez
+    "AL": 378,  # Alcazaba
+    "SJ": 624,  # San Juan de la Cruz
+    "CY": 439,  # Carlos Haya
+    "PB": 261,  # Pío Baroja
+}
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -49,20 +77,8 @@ def descargar_ocupacion() -> pd.DataFrame:
     Guarda también una copia en data/raw/ocupacion_<YYYYMMDD_HHMMSS>.csv
     para construir el histórico de entrenamiento.
     """
-    # El servidor del Ayuntamiento bloquea peticiones sin cabeceras de navegador.
-    # Con estas cabeceras acepta la conexión desde GitHub Actions.
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "es-ES,es;q=0.9",
-        "Referer": "https://datosabiertos.malaga.eu/",
-    }
     try:
-        response = requests.get(URL_OCUPACION, headers=headers, timeout=TIMEOUT)
+        response = requests.get(URL_OCUPACION, headers=HEADERS, timeout=TIMEOUT)
         response.raise_for_status()
     except requests.RequestException as e:
         logger.error(f"Error descargando ocupación: {e}")
@@ -105,7 +121,7 @@ def descargar_catalogo() -> pd.DataFrame:
         return pd.read_csv(ruta_local)
 
     try:
-        response = requests.get(URL_CATALOGO, headers=headers, timeout=TIMEOUT)
+        response = requests.get(URL_CATALOGO, headers=HEADERS, timeout=TIMEOUT)
         response.raise_for_status()
     except requests.RequestException as e:
         logger.error(f"Error descargando catálogo: {e}")
@@ -114,14 +130,10 @@ def descargar_catalogo() -> pd.DataFrame:
     from io import StringIO
     df = pd.read_csv(StringIO(response.text))
 
-    # Capacidades totales estimadas (plazas máximas por aparcamiento)
-    # Fuente: datos históricos + información pública Ayto. Málaga
-    capacidades = {
-        "CE": 400, "PA": 120, "AN": 550, "CA": 250,
-        "AL": 200, "SJ": 450, "MA": 180, "TE": 100,
-        "CY": 400, "PB": 200,
-    }
-    df["capacidad_total"] = df["id"].map(capacidades)
+    # Capacidades de rotación verificadas (smassa.eu, junio 2026).
+    # Fuente única: constante CAPACIDADES definida en este módulo,
+    # sincronizada con predict.py y catalogo.js.
+    df["capacidad_total"] = df["id"].map(CAPACIDADES)
 
     df.to_csv(ruta_local, index=False)
     logger.info(f"Catálogo guardado en {ruta_local}")

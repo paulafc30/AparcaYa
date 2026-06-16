@@ -130,6 +130,8 @@ function destacarMarcador(id) {
   const d   = (window._datosActuales || {})[id];
   const pct = d ? d.pct : 0.5;
 
+  // @keyframes parpadeo está definido en styles.css — no inyectamos <style> aquí
+  // para evitar acumular reglas duplicadas en el DOM con cada llamada.
   const iconoDestacado = L.divIcon({
     className: '',
     html: `<div style="
@@ -140,13 +142,7 @@ function destacarMarcador(id) {
       transform:rotate(-45deg);
       box-shadow:0 0 0 6px ${colorEstado(pct)}55, 0 3px 10px rgba(0,0,0,.4);
       animation: parpadeo 0.6s ease-in-out 5;
-    "></div>
-    <style>
-      @keyframes parpadeo {
-        0%,100%{opacity:1;transform:rotate(-45deg) scale(1)}
-        50%{opacity:.6;transform:rotate(-45deg) scale(1.2)}
-      }
-    </style>`,
+    "></div>`,
     iconSize: [36, 36],
     iconAnchor: [18, 36],
     popupAnchor: [0, -38],

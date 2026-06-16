@@ -30,7 +30,7 @@ const CAT = {
   AL: { n: 'Alcazaba',            dir: 'C/ Alcazabilla',           lat: 36.7224,    lng: -4.4165,   cap: 378 },
   SJ: { n: 'San Juan de la Cruz', dir: 'C/ Lemberg Ruiz',          lat: 36.7179,    lng: -4.4333,   cap: 624 },
   CY: { n: 'Carlos Haya',         dir: 'Av. Santa Rosa de Lima',   lat: 36.7119,    lng: -4.4410,   cap: 439 },
-  PB: { n: 'Pío Baroja',          dir: 'Av. Pío Baroja - El Palo', lat: 36.7210,    lng: -4.3607,   cap: 261 },
+  PB: { n: 'Pío Baroja',          dir: 'Av. Pío Baroja - El Palo', lat: 36.7190,    lng: -4.3648,   cap: 261 },
 };
 
 // ── 2. TIPO DE PARKING ────────────────────────────────────────────────────────

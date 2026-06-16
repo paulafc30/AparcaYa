@@ -202,6 +202,12 @@ header {
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
+/* Animación de parpadeo para marcadores destacados en el mapa */
+@keyframes parpadeo {
+  0%,100% { opacity:1; transform:rotate(-45deg) scale(1); }
+  50%     { opacity:.6; transform:rotate(-45deg) scale(1.2); }
+}
+
 .msgs {
   flex: 1;
   overflow-y: auto;

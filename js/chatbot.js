@@ -33,7 +33,7 @@ function toggleChat() {
 // ── Normalización ─────────────────────────────────────────────────────────────
 function normalizar(texto) {
   return texto.toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')  // elimina diacríticos (rango Unicode explícito)
     .replace(/[¿¡?!.,;:]/g, ' ')
     .replace(/\s+/g, ' ').trim();
 }
@@ -318,6 +318,10 @@ function respuestaContextual(t) {
     const horas = hMatch[3] ? Math.max(0, parseInt(hMatch[3]) - new Date().getHours()) : h;
     if (horas >= 0 && horas <= 12) {
       const p = predecirHora(id, d.pct, horas);
+      // predecirHora devuelve null si el modelo ML no tiene datos aún
+      if (p === null) {
+        return `No tengo predicción disponible para <b>${c.n}</b> en ${horas}h — modelo ML actualizando. 🤖`;
+      }
       return `En ${horas}h, <b>${c.n}</b> se prevé <span style="color:${colorEstado(p)};font-weight:700">${estado(p)}</span> (${Math.round(p * 100)}%).`;
     }
   }

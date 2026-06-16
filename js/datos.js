@@ -154,7 +154,10 @@ function parsearCSV(csv) {
  * @throws {Error} Si Supabase no responde o la key es incorrecta
  */
 async function cargarDesdeSupabase() {
-  const url = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLA}?select=parking_id,libres,pct_ocupacion&order=ts.desc&limit=10`;
+  // Usamos la vista 'parking_ultimo' (definida en schema.sql) que hace
+  // DISTINCT ON (parking_id) ORDER BY ts DESC — garantiza exactamente 1 fila
+  // por parking, sin riesgo de traer duplicados o perder alguno con limit=10.
+  const url = `${SUPABASE_URL}/rest/v1/parking_ultimo?select=parking_id,libres,pct_ocupacion,tendencia`;
   const resp = await fetch(url, {
     headers: {
       apikey: SUPABASE_KEY,
@@ -167,9 +170,9 @@ async function cargarDesdeSupabase() {
   rows.forEach((r) => {
     if (!CAT[r.parking_id]) return;
     datos[r.parking_id] = {
-      libres: r.libres,
-      pct: r.pct_ocupacion,
-      tendencia: 0,
+      libres:    r.libres,
+      pct:       r.pct_ocupacion,
+      tendencia: r.tendencia ?? 0,
     };
   });
   return datos;

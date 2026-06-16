@@ -97,7 +97,13 @@ def exportar_json(df) -> None:
 
 
 def subir_supabase(df) -> None:
-    """Inserta el estado actual en la tabla parking_estado de Supabase."""
+    """
+    Inserta el estado actual en parking_estado de Supabase.
+
+    Calcula tendencia comparando con la última lectura en la vista parking_ultimo,
+    en vez de un archivo local que no persiste entre ejecuciones de GitHub Actions.
+      +1 = SUBIENDO (pct sube > 2 pp) · 0 = ESTABLE · -1 = BAJANDO
+    """
     import requests
     import math
 
@@ -106,8 +112,7 @@ def subir_supabase(df) -> None:
     if not url or not key:
         raise EnvironmentError("Variables SUPABASE_URL / SUPABASE_KEY no definidas")
 
-    endpoint = f"{url}/rest/v1/parking_estado"
-    headers  = {
+    sb_headers = {
         "apikey": key,
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
@@ -131,27 +136,55 @@ def subir_supabase(df) -> None:
         except (TypeError, ValueError):
             return default
 
+    # ── Leer estado previo desde parking_ultimo para calcular tendencia ────────
+    pct_anterior: dict[str, float] = {}
+    try:
+        r = requests.get(
+            f"{url}/rest/v1/parking_ultimo?select=parking_id,pct_ocupacion",
+            headers=sb_headers, timeout=8,
+        )
+        if r.ok:
+            for row in r.json():
+                pct_anterior[row["parking_id"]] = float(row["pct_ocupacion"])
+            logger.info(f"Tendencia: leídos {len(pct_anterior)} valores previos de Supabase.")
+    except Exception as e:
+        logger.warning(f"No se pudo leer estado previo para tendencia: {e}")
+
+    def calcular_tendencia(pid: str, pct_actual: float) -> int:
+        prev = pct_anterior.get(pid)
+        if prev is None:
+            return 0
+        delta = pct_actual - prev
+        if delta > 0.02:
+            return 1    # SUBIENDO
+        if delta < -0.02:
+            return -1   # BAJANDO
+        return 0        # ESTABLE
+
+    # ── Construir registros ────────────────────────────────────────────────────
     registros = []
     for _, row in df.iterrows():
         pid = str(row.get("id", "")).strip().upper()
         if pid not in IDS_VALIDOS:
             continue  # ignorar filas sin match en el catálogo
+        pct = safe_float(row.get("pct_ocupacion"))
         registros.append({
             "parking_id":     pid,
             "parking_nombre": str(row.get("nombre", pid)),
             "libres":         safe_int(row.get("libres")),
             "ocupados":       safe_int(row.get("ocupados")),
             "capacidad":      safe_int(row.get("capacidad_total")),
-            "pct_ocupacion":  safe_float(row.get("pct_ocupacion")),
+            "pct_ocupacion":  pct,
             "estado":         str(row.get("estado", "LIBRE")),
-            "tendencia":      0,
+            "tendencia":      calcular_tendencia(pid, pct),
         })
 
     if not registros:
         logger.warning("Supabase: ningún registro válido para insertar.")
         return
 
-    resp = requests.post(endpoint, headers=headers, json=registros, timeout=10)
+    endpoint = f"{url}/rest/v1/parking_estado"
+    resp = requests.post(endpoint, headers=sb_headers, json=registros, timeout=10)
     resp.raise_for_status()
     logger.info(f"Supabase: {len(registros)} filas insertadas.")
 
