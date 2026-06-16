@@ -69,7 +69,7 @@ CAPACIDADES = {
 # Umbrales de estado (deben coincidir con prediccion.js)
 def calcular_estado(pct: float) -> str:
     """Convierte un % de ocupación en texto de estado."""
-    if pct >= 0.85: return "LLENO"
+    if pct >= 0.90: return "LLENO"
     if pct >= 0.50: return "DISPONIBLE"
     return "LIBRE"
 
