@@ -12,13 +12,14 @@
 
 // ── Contexto de conversación ──────────────────────────────────────────────────
 const _ctx = {
-  ultimoPark:      null,
-  ultimoLabel:     null,
-  ultimoMinutos:   null,
-  esperandoOrigen: false,
-  ultimoDestLat:   null,
-  ultimoDestLng:   null,
-  ultimoDestLabel: null,
+  ultimoPark:        null,
+  ultimoLabel:       null,
+  ultimoMinutos:     null,
+  esperandoOrigen:   false,
+  esperandoUbicacion: false,
+  ultimoDestLat:     null,
+  ultimoDestLng:     null,
+  ultimoDestLabel:   null,
 };
 
 // ── Toggle panel ──────────────────────────────────────────────────────────────
@@ -348,7 +349,30 @@ function buscarEnTexto(texto) {
   const ctxResp = respuestaContextual(t);
   if (ctxResp) return ctxResp;
 
-  if (/cual.*libre|mas libre|mejor parking|donde aparco|donde hay|hay plazas/.test(t)) {
+  // ¿El usuario responde con su ubicación actual tras pedírsela?
+  if (_ctx.esperandoUbicacion) {
+    _ctx.esperandoUbicacion = false;
+    const palabrasU = t.split(/\s+/);
+    for (let len = palabrasU.length; len >= 1; len--) {
+      for (let start = 0; start <= palabrasU.length - len; start++) {
+        const clave = palabrasU.slice(start, start + len).join(' ');
+        if (DESTINOS[clave]) {
+          const { label, lat, lng } = DESTINOS[clave];
+          _ctx.ultimoDestLat = lat; _ctx.ultimoDestLng = lng; _ctx.ultimoDestLabel = label;
+          return respuestaParking(parkingOptimo(lat, lng), label, null);
+        }
+      }
+    }
+    return `No reconozco esa ubicación. Prueba con: <em>Centro, Catedral, El Palo, FYCMA, Estación de tren…</em>`;
+  }
+
+  // "¿cuál es el más cercano?" sin destino → pedir ubicación
+  if (/mas cercano|parking cercano|cual.*cerca|cerca de mi|donde aparco|aparcar cerca/.test(t)) {
+    _ctx.esperandoUbicacion = true;
+    return '¿Dónde estás ahora? Dime tu ubicación y te digo el parking más cercano con plazas disponibles. 📍';
+  }
+
+  if (/cual.*libre|mas libre|mejor parking|donde hay|hay plazas/.test(t)) {
     const mejor = rankParks()[0];
     const d = window._datosActuales?.[mejor], c = CAT[mejor];
     _ctx.ultimoPark = mejor;
