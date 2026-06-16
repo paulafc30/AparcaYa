@@ -11,7 +11,15 @@
  */
 
 // ── Contexto de conversación ──────────────────────────────────────────────────
-const _ctx = { ultimoPark: null, ultimoLabel: null, ultimoMinutos: null };
+const _ctx = {
+  ultimoPark:      null,
+  ultimoLabel:     null,
+  ultimoMinutos:   null,
+  esperandoOrigen: false,
+  ultimoDestLat:   null,
+  ultimoDestLng:   null,
+  ultimoDestLabel: null,
+};
 
 // ── Toggle panel ──────────────────────────────────────────────────────────────
 function toggleChat() {
@@ -29,24 +37,28 @@ function normalizar(texto) {
     .replace(/\s+/g, ' ').trim();
 }
 
-// ── Parking más cercano disponible ───────────────────────────────────────────
+// ── Ranking por distancia al destino ─────────────────────────────────────────
 /**
- * Dado un punto de destino (lat, lng), devuelve el ID del parking más cercano
- * que no esté lleno. Si todos están llenos devuelve igualmente el más cercano.
+ * Devuelve todos los IDs de parking ordenados por distancia real (km) al punto dado.
+ * Coordenadas estáticas de catalogo.js — no cambian con el CSV del Ayuntamiento.
+ * 1°lat ≈ 111 km · 1°lng ≈ 88.8 km a lat 36.7° N.
  */
-function parkingOptimo(lat, lng) {
-  const d = window._datosActuales || {};
+function rankByDistance(lat, lng) {
   return Object.keys(CAT)
     .map(id => ({
       id,
-      dist: Math.hypot(CAT[id].lat - lat, CAT[id].lng - lng),
-      pct:  d[id]?.pct ?? 0.5,
+      dist: Math.hypot((CAT[id].lat - lat) * 111, (CAT[id].lng - lng) * 88.8),
     }))
-    .sort((a, b) => {
-      const aLleno = a.pct >= 0.90, bLleno = b.pct >= 0.90;
-      if (aLleno !== bLleno) return aLleno ? 1 : -1;
-      return a.dist - b.dist;
-    })[0]?.id ?? 'CE';
+    .sort((a, b) => a.dist - b.dist)
+    .map(x => x.id);
+}
+
+/**
+ * Devuelve el parking MÁS CERCANO al destino — pura distancia, sin filtro de ocupación.
+ * La comprobación de disponibilidad se hace después en respuestaParking().
+ */
+function parkingOptimo(lat, lng) {
+  return rankByDistance(lat, lng)[0] ?? 'CE';
 }
 
 // ── Diccionario de destinos con coordenadas reales ───────────────────────────
@@ -230,37 +242,53 @@ function rankParks() {
 
 // ── Respuesta recomendando un parking ─────────────────────────────────────────
 function respuestaParking(parkId, label, minutosViaje) {
-  const d   = window._datosActuales?.[parkId];
-  const c   = CAT[parkId];
-  const pctShow    = d ? Math.round(d.pct * 100) : '?';
-  const libresShow = d ? d.libres : '?';
-  const estadoStr  = d ? estado(d.pct) : '–';
-  const color      = d ? colorEstado(d.pct) : '#94a3b8';
+  const d = window._datosActuales?.[parkId];
+  const c = CAT[parkId];
 
   _ctx.ultimoPark    = parkId;
   _ctx.ultimoLabel   = label;
   _ctx.ultimoMinutos = minutosViaje;
 
-  let html = `🅿️ Te recomiendo <b>${c.n}</b> para ir a <b>${label}</b>.<br>`;
-  html += `Estado: <span style="color:${color};font-weight:700">${estadoStr}</span> · `;
-  html += `${libresShow} plazas libres (${pctShow}% ocupado).<br>`;
-  html += `📍 ${c.dir} `;
-  html += `<a href="#" onclick="focusPark('${parkId}');return false;" style="color:#3b82f6;font-size:11px">📍 Ver en mapa</a>`;
+  // Estado actual
+  const pctNow     = d?.pct ?? null;
+  const libresNow  = d?.libres ?? null;
+  const colorNow   = pctNow != null ? colorEstado(pctNow) : '#94a3b8';
+  const estadoNow  = pctNow != null ? estado(pctNow) : '–';
 
+  let html = `🅿️ El más cercano a <b>${label}</b>: <b>${c.n}</b>.<br>`;
+  html += `Ahora: <span style="color:${colorNow};font-weight:700">${estadoNow}</span>`;
+  if (pctNow != null) html += ` · ${libresNow} libres (${Math.round(pctNow * 100)}%)`;
+  html += `.<br>📍 ${c.dir} `;
+  html += `<a href="#" onclick="focusPark('${parkId}');return false;" style="color:#3b82f6;font-size:11px">Ver en mapa</a>`;
+
+  // Predicción a la llegada (solo si hay tiempo de viaje y datos actuales)
+  let pctLlegada = pctNow;   // base para decidir si sugerir alternativa
   if (minutosViaje && d) {
-    const pctLleg = predecirHora(parkId, d.pct, minutosViaje / 60);
-    const eL = estado(pctLleg), cL = colorEstado(pctLleg);
-    html += `<br>🕐 En ${minutosViaje} min, se prevé <span style="color:${cL};font-weight:700">${eL}</span> (${Math.round(pctLleg * 100)}%).`;
-    if (pctLleg >= 0.90) {
-      const altId = rankParks().find(id => id !== parkId);
-      if (altId) {
-        const ca = CAT[altId], da = window._datosActuales?.[altId];
-        html += `<br>⚠️ Alternativa: <b>${ca.n}</b> · ${da?.libres ?? '?'} libres `;
-        html += `<a href="#" onclick="focusPark('${altId}');return false;" style="color:#3b82f6;font-size:11px">📍 Ver</a>`;
-        setTimeout(() => focusPark?.(altId), 1800);
-      }
+    pctLlegada = predecirHora(parkId, d.pct, minutosViaje / 60);
+    const eL = estado(pctLlegada), cL = colorEstado(pctLlegada);
+    html += `<br>🕐 A la llegada (~${minutosViaje} min): <span style="color:${cL};font-weight:700">${eL}</span> (${Math.round(pctLlegada * 100)}%).`;
+  }
+
+  // Si va a estar lleno (o está lleno ahora), buscar el siguiente más cercano disponible
+  if (pctLlegada != null && pctLlegada >= 0.90) {
+    // Usamos las coordenadas del destino guardadas en _ctx para buscar el 2.º más cercano
+    const destLat = _ctx.ultimoDestLat, destLng = _ctx.ultimoDestLng;
+    const byDist  = destLat != null ? rankByDistance(destLat, destLng) : rankParks();
+    const altId   = byDist.find(id => {
+      if (id === parkId) return false;
+      const da = window._datosActuales?.[id];
+      if (!da) return true;  // sin datos → podría tener plazas
+      const pctAlt = minutosViaje ? predecirHora(id, da.pct, minutosViaje / 60) : da.pct;
+      return pctAlt < 0.90;
+    });
+    if (altId) {
+      const ca = CAT[altId], da = window._datosActuales?.[altId];
+      html += `<br>⚠️ Se prevé lleno. Siguiente más cercano con plaza: <b>${ca.n}</b> · ${da?.libres ?? '?'} libres `;
+      html += `<a href="#" onclick="focusPark('${altId}');return false;" style="color:#3b82f6;font-size:11px">Ver</a>`;
+      setTimeout(() => focusPark?.(altId), 1800);
     }
   }
+
   setTimeout(() => focusPark?.(parkId), 200);
   return html;
 }
@@ -327,10 +355,26 @@ function buscarEnTexto(texto) {
     return `El más libre ahora es <b>${c.n}</b>: <span style="color:${d ? colorEstado(d.pct) : '#94a3b8'};font-weight:700">${d ? estado(d.pct) : '–'}</span> · ${d?.libres ?? '?'} libres. <a href="#" onclick="focusPark('${mejor}');return false;" style="color:#3b82f6;font-size:11px">📍 Ver</a>`;
   }
 
-  // Detectar origen (tiempo de viaje)
+  // Detectar origen (tiempo de viaje desde otra ciudad)
   let minutosViaje = null;
   for (const [origen, mins] of Object.entries(ORIGENES)) {
     if (t.includes(origen)) { minutosViaje = mins; break; }
+  }
+
+  // ¿El usuario está respondiendo a nuestra pregunta de origen?
+  if (_ctx.esperandoOrigen && _ctx.ultimoDestLat != null) {
+    _ctx.esperandoOrigen = false;
+    // Ver si da un origen reconocido
+    for (const [origen, mins] of Object.entries(ORIGENES)) {
+      if (t.includes(origen)) {
+        minutosViaje = mins;
+        const parkId = parkingOptimo(_ctx.ultimoDestLat, _ctx.ultimoDestLng);
+        return respuestaParking(parkId, _ctx.ultimoDestLabel, minutosViaje);
+      }
+    }
+    // No reconocemos el origen — responde sin tiempo de viaje
+    const parkId = parkingOptimo(_ctx.ultimoDestLat, _ctx.ultimoDestLng);
+    return respuestaParking(parkId, _ctx.ultimoDestLabel, null);
   }
 
   // Buscar destino por coincidencia más larga
@@ -340,9 +384,20 @@ function buscarEnTexto(texto) {
       const clave = palabras.slice(start, start + len).join(' ');
       if (DESTINOS[clave]) {
         const { label, lat, lng } = DESTINOS[clave];
-        // Parking más cercano a las coordenadas del destino
         const parkId = parkingOptimo(lat, lng);
-        return respuestaParking(parkId, label, minutosViaje);
+
+        if (minutosViaje !== null) {
+          // Ya tiene origen → respuesta completa
+          return respuestaParking(parkId, label, minutosViaje);
+        } else {
+          // Sin origen → recomienda el más cercano Y pregunta de dónde viene
+          _ctx.esperandoOrigen = true;
+          _ctx.ultimoDestLat   = lat;
+          _ctx.ultimoDestLng   = lng;
+          _ctx.ultimoDestLabel = label;
+          const resp = respuestaParking(parkId, label, null);
+          return resp + `<br><span style="color:#64748b;font-size:11px">¿Desde dónde vienes? Puedo ajustar la recomendación según tu tiempo de llegada.</span>`;
+        }
       }
     }
   }
@@ -356,7 +411,7 @@ function buscarEnTexto(texto) {
     const c = CAT[_ctx.ultimoPark];
     return `No entendí bien. ¿Quieres saber algo más sobre <b>${c.n}</b>? Prueba: "¿cuántas plazas tiene?", "¿cómo está ahora?", "¿y en 2 horas?", "¿hay alternativas?"`;
   }
-  return `No he encontrado ese destino. Prueba con: <em>Catedral, Molinillo, El Palo, Carlos Haya, Estación de tren, Alcazaba…</em>`;
+  return `No he encontrado ese destino. Prueba con: <em>Catedral, FYCMA, Carlos Haya, Estación de tren, Alcazaba, Molinillo…</em>`;
 }
 
 function enviar() {

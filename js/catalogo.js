@@ -18,18 +18,19 @@
 // Cada clave es el ID corto que usamos en todo el proyecto (CE, MA, AL...).
 // lat/lng son las coordenadas GPS para el mapa (Leaflet).
 // cap = plazas de ROTACIÓN según SMASSA (smassa.eu) — dato oficial verificado.
-// Fuente: https://www.smassa.eu/aparcamientos.php (junio 2026)
+// Fuente: catálogo oficial Ayuntamiento de Málaga (datos abiertos, junio 2026)
+// Coordenadas verificadas contra el CSV oficial ocupappublicosmun/catalogo.csv
 const CAT = {
-  CE: { n: 'Cervantes',           dir: 'C/ Cervantes',             lat: 36.7197,    lng: -4.4105,   cap: 409 },
+  CE: { n: 'Cervantes',           dir: 'C/ Cervantes',             lat: 36.7209,    lng: -4.4119,   cap: 409 },
   MA: { n: 'Salitre',             dir: 'C/ Salitre',               lat: 36.7131,    lng: -4.4278,   cap: 435 },
-  CA: { n: 'Camas',               dir: 'C/ Camas',                 lat: 36.7127,    lng: -4.4254,   cap: 350 },
-  PA: { n: 'El Palo',             dir: 'C/ Alonso Carrillo',       lat: 36.7210,    lng: -4.3609,   cap: 127 },
-  AN: { n: 'Av. de Andalucía',    dir: 'Av. de Andalucía',         lat: 36.7171,    lng: -4.4279,   cap: 613 },
-  TE: { n: 'Tejón y Rodríguez',   dir: 'C/ Tejón y Rodríguez',    lat: 36.7174,    lng: -4.4214,   cap: 187 },
+  CA: { n: 'Camas',               dir: 'C/ Camas',                 lat: 36.7202,    lng: -4.4245,   cap: 350 },
+  PA: { n: 'El Palo',             dir: 'C/ Alonso Carrillo',       lat: 36.7210,    lng: -4.3607,   cap: 127 },
+  AN: { n: 'Av. de Andalucía',    dir: 'Av. de Andalucía',         lat: 36.7173,    lng: -4.4277,   cap: 613 },
+  TE: { n: 'Tejón y Rodríguez',   dir: 'C/ Tejón y Rodríguez',    lat: 36.7236,    lng: -4.4215,   cap: 187 },
   AL: { n: 'Alcazaba',            dir: 'C/ Alcazabilla',           lat: 36.7224,    lng: -4.4165,   cap: 378 },
   SJ: { n: 'San Juan de la Cruz', dir: 'C/ Lemberg Ruiz',          lat: 36.7179,    lng: -4.4333,   cap: 624 },
-  CY: { n: 'Carlos Haya',         dir: 'Av. Santa Rosa de Lima',   lat: 36.7162,    lng: -4.4488,   cap: 439 },
-  PB: { n: 'Pío Baroja',          dir: 'Av. Pío Baroja - El Palo', lat: 36.7204,    lng: -4.3644,   cap: 261 },
+  CY: { n: 'Carlos Haya',         dir: 'Av. Santa Rosa de Lima',   lat: 36.7119,    lng: -4.4410,   cap: 439 },
+  PB: { n: 'Pío Baroja',          dir: 'Av. Pío Baroja - El Palo', lat: 36.7210,    lng: -4.3607,   cap: 261 },
 };
 
 // ── 2. TIPO DE PARKING ────────────────────────────────────────────────────────
