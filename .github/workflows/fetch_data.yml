@@ -25,21 +25,28 @@ jobs:
         run: pip install -r python/requirements.txt
 
       # ── Caché del modelo ────────────────────────────────────────────────────
-      # El modelo solo se reentrena cuando cambia el dataset histórico.
-      # La clave de caché incluye el hash del CSV, así que si el archivo
-      # no cambia entre runs, el modelo se reutiliza sin reentrenar.
-      # Esto ahorra ~15 segundos de cómputo en cada ciclo de 5 min.
+      # El modelo se reentrena una vez al día (clave = fecha actual).
+      # Así el modelo aprende de los datos reales acumulados en Supabase
+      # (parking_estado) sin reentrenar en cada ciclo de 5 min.
+      # Si durante el día ya existe la caché, se reutiliza el modelo.
+      - name: Obtener fecha actual para clave de caché
+        id: fecha
+        run: echo "hoy=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
       - name: Cache modelo Random Forest
         id: cache-modelo
         uses: actions/cache@v4
         with:
           path: python/modelo/model.pkl
-          key: modelo-rf-${{ hashFiles('data/dataset_historico_aparcaya.csv') }}
+          key: modelo-rf-${{ steps.fecha.outputs.hoy }}
 
-      - name: Entrenar modelo (solo si no hay caché o el dataset cambió)
+      - name: Entrenar modelo (una vez al día con datos reales de Supabase)
         if: steps.cache-modelo.outputs.cache-hit != 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          echo "Cache miss — entrenando modelo..."
+          echo "Cache miss — entrenando modelo con datos reales de Supabase..."
           python python/modelo/train.py --horizonte 1
           echo "Modelo entrenado y guardado en python/modelo/model.pkl"
 

@@ -53,6 +53,17 @@ DATASET_PATH = ROOT / "data" / "dataset_historico_aparcaya.csv"
 MODEL_DIR    = ROOT / "python" / "modelo"
 MODEL_PATH   = MODEL_DIR / "model.pkl"
 
+# ── Tipo de parking por ID (igual que predict.py y catalogo.js) ───────────────
+TIPO_PARKING = {
+    "CE": "centro",    "MA": "centro",    "AL": "centro",  "TE": "centro",
+    "CY": "hospital",
+    "PA": "playa",     "PB": "playa",
+    "AN": "comercial", "SJ": "comercial", "CA": "comercial",
+}
+
+# Mínimo de filas reales para preferir Supabase sobre el CSV simulado
+MIN_FILAS_REALES = 500
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -66,16 +77,97 @@ log = logging.getLogger("train")
 TIPO_COD = {"centro": 0, "comercial": 1, "hospital": 2, "playa": 3}
 
 
+def cargar_desde_supabase() -> pd.DataFrame | None:
+    """
+    Descarga el histórico real de parking_estado en Supabase y lo convierte
+    al mismo formato que el CSV simulado para que construir_pares pueda usarlo.
+
+    Requiere las variables de entorno SUPABASE_URL y SUPABASE_KEY.
+    Devuelve None si no hay suficientes datos o si Supabase no está disponible.
+    """
+    import os, requests as req, math
+
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    if not url or not key:
+        log.info("  SUPABASE_URL/SUPABASE_KEY no definidas — usando CSV simulado")
+        return None
+
+    endpoint = (
+        f"{url}/rest/v1/parking_estado"
+        f"?select=ts,parking_id,parking_nombre,libres,ocupados,capacidad,pct_ocupacion,estado"
+        f"&order=ts.asc&limit=100000"
+    )
+    try:
+        resp = req.get(endpoint, headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+        }, timeout=30)
+        resp.raise_for_status()
+        rows = resp.json()
+    except Exception as e:
+        log.warning(f"  Supabase no disponible: {e} — usando CSV simulado")
+        return None
+
+    if len(rows) < MIN_FILAS_REALES:
+        log.info(f"  Solo {len(rows)} filas en Supabase (mín {MIN_FILAS_REALES}) — "
+                 "usando CSV simulado para mejor cobertura")
+        return None
+
+    log.info(f"  → {len(rows):,} filas descargadas de Supabase (datos reales)")
+
+    df = pd.DataFrame(rows)
+    df["timestamp"]     = pd.to_datetime(df["ts"], utc=True).dt.tz_localize(None)
+    df["hora"]          = df["timestamp"].dt.hour
+    df["minuto"]        = df["timestamp"].dt.minute
+    df["dia_semana"]    = df["timestamp"].dt.dayofweek   # 0=lunes
+    df["es_fin_semana"] = (df["dia_semana"] >= 5).astype(int)
+    df["tipo"]          = df["parking_id"].map(TIPO_PARKING).fillna("centro")
+    df["capacidad"]     = pd.to_numeric(df["capacidad"], errors="coerce").fillna(400)
+    df["libres"]        = pd.to_numeric(df["libres"],    errors="coerce").fillna(0)
+    df["ocupados"]      = pd.to_numeric(df["ocupados"],  errors="coerce").fillna(0)
+    df["pct_ocupacion"] = pd.to_numeric(df["pct_ocupacion"], errors="coerce").fillna(0)
+
+    # Eliminar filas con NaN en columnas críticas
+    df = df.dropna(subset=["timestamp", "parking_id", "pct_ocupacion", "libres"])
+    log.info(f"  → {len(df):,} filas válidas tras limpieza")
+    return df
+
+
 def cargar_dataset() -> pd.DataFrame:
     """
-    Carga y valida el dataset histórico.
-    Convierte la columna timestamp a datetime para poder ordenar por tiempo.
+    Carga el histórico para entrenamiento.
+    Prioridad: datos reales de Supabase → CSV simulado como fallback.
     """
-    log.info(f"Cargando dataset: {DATASET_PATH}")
+    df_real = cargar_desde_supabase()
+    if df_real is not None:
+        log.info("✅ Entrenando con datos REALES del Ayuntamiento (vía Supabase)")
+        return df_real
+
+    log.info(f"Cargando dataset simulado: {DATASET_PATH}")
     df = pd.read_csv(DATASET_PATH, parse_dates=["timestamp"])
-    log.info(f"  → {len(df):,} filas · {df['parking_id'].nunique()} parkings · "
-             f"columnas: {list(df.columns)}")
+    log.info(f"  → {len(df):,} filas · {df['parking_id'].nunique()} parkings")
     return df
+
+
+def _detectar_intervalo_min(df: pd.DataFrame) -> int:
+    """
+    Detecta automáticamente el intervalo entre snapshots en minutos.
+    CSV simulado: 30 min · Datos reales del Ayuntamiento: ~5 min.
+    Usa la mediana de diferencias para ser robusto ante huecos puntuales.
+    """
+    muestras = (
+        df.sort_values("timestamp")
+          .groupby("parking_id")["timestamp"]
+          .diff()
+          .dropna()
+    )
+    if muestras.empty:
+        return 30  # default seguro
+    mediana_min = muestras.dt.total_seconds().median() / 60
+    intervalo = max(1, round(mediana_min))
+    log.info(f"  Intervalo entre snapshots detectado: ~{intervalo} min")
+    return intervalo
 
 
 def construir_pares(df: pd.DataFrame, horizonte_horas: int) -> pd.DataFrame:
@@ -86,6 +178,12 @@ def construir_pares(df: pd.DataFrame, horizonte_horas: int) -> pd.DataFrame:
     parking en T + horizonte_horas. Así el modelo aprende:
       "Si ahora hay un 70% de ocupación a las 10h del lunes, ¿cuántas
        plazas habrá libres a las 12h?"
+
+    Detecta automáticamente la frecuencia de los datos:
+      - CSV simulado   (~30 min): paso = horizonte_horas × 2 filas
+      - Datos reales   (~5 min) : paso = horizonte_horas × 12 filas
+    Y verifica la diferencia temporal real (tolerancia ±15 min) para saltar
+    huecos sin descartar pares válidos de frecuencia variable.
 
     Parámetros:
         df              : DataFrame con el dataset histórico completo
@@ -105,23 +203,42 @@ def construir_pares(df: pd.DataFrame, horizonte_horas: int) -> pd.DataFrame:
     # Codificamos el tipo de parking como número
     df["tipo_cod"] = df["tipo"].map(TIPO_COD).fillna(0).astype(int)
 
+    # Detectar intervalo para calcular el paso de índice aproximado
+    intervalo_min = _detectar_intervalo_min(df)
+    filas_por_hora = max(1, round(60 / intervalo_min))
+    paso_inicial = horizonte_horas * filas_por_hora
+    # Tolerancia: ±20% del horizonte objetivo en minutos
+    tolerancia_min = max(15, horizonte_horas * 60 * 0.20)
+    objetivo_min = horizonte_horas * 60
+
     registros = []
     for parking_id, grupo in df.groupby("parking_id"):
         grupo = grupo.sort_values("timestamp").reset_index(drop=True)
+        ts_array = grupo["timestamp"].values  # numpy para búsqueda rápida
 
-        # Para cada fila, buscamos el estado N horas más tarde
-        # El dataset tiene intervalos de 30 min → N horas = N*2 filas
-        paso = horizonte_horas * 2  # cada fila = 30 min
+        for i in range(len(grupo)):
+            t_actual = grupo.iloc[i]
+            ts_objetivo = t_actual["timestamp"] + pd.Timedelta(hours=horizonte_horas)
 
-        for i in range(len(grupo) - paso):
-            t_actual  = grupo.iloc[i]
-            t_futuro  = grupo.iloc[i + paso]
+            # Buscamos el índice más cercano al objetivo temporal
+            j_hint = min(i + paso_inicial, len(grupo) - 1)
+            # Búsqueda binaria simplificada: explorar ±5 filas alrededor del hint
+            mejor_j    = None
+            mejor_diff = float("inf")
+            inicio_busq = max(i + 1, j_hint - 5)
+            fin_busq    = min(len(grupo), j_hint + 6)
+            for j in range(inicio_busq, fin_busq):
+                diff = abs(
+                    (grupo.iloc[j]["timestamp"] - ts_objetivo).total_seconds() / 60
+                )
+                if diff < mejor_diff:
+                    mejor_diff = diff
+                    mejor_j = j
 
-            # Verificamos que la diferencia de tiempo sea la esperada (tolerancia 5 min)
-            diff_min = (t_futuro["timestamp"] - t_actual["timestamp"]).total_seconds() / 60
-            if abs(diff_min - horizonte_horas * 60) > 5:
-                continue  # Saltamos si hay un hueco en los datos
+            if mejor_j is None or mejor_diff > tolerancia_min:
+                continue  # Hueco demasiado grande en los datos
 
+            t_futuro = grupo.iloc[mejor_j]
             hora_futura = (t_actual["hora"] + horizonte_horas) % 24
 
             registros.append({
