@@ -216,44 +216,39 @@ function predecirHora(id, pctActual, horasDelante) {
 }
 
 /**
- * Genera el texto de predicción a 1 hora vista para tarjetas y popups.
- * Si hay predicciones ML añade el nivel de confianza del modelo.
+ * Genera el texto de predicción a 1 hora vista en lenguaje natural.
+ * Usa predicciones ML si están disponibles; patrones históricos como fallback.
  *
- * Ejemplos de salida:
- *   "[IA] Se mantendrá libre en 1h (32% previsto, confianza alta)"
- *   "[IA] ⚠️ Podría estar lleno en 1h (87% previsto, confianza media)"
- *   "✅ Mejorará a libre en 1h (41% previsto)"   ← fallback sin IA
+ * Ejemplos:
+ *   "Seguirá libre en 1h 👍"
+ *   "Seguirá habiendo plazas en 1h"
+ *   "⚠️ Puede llenarse en 1h"
+ *   "✅ En 1h habrá plazas disponibles"
  *
  * @param {string} id        - ID del parking
  * @param {number} pctActual - Ocupación actual entre 0 y 1
  * @returns {string}
  */
 function textoPrediccion(id, pctActual) {
-  const ml = _predML(id, 1);  // predicción ML a 1 hora
+  const ml  = _predML(id, 1);
+  const p1  = ml ? ml.pct_prevista : _predPatrones(id, pctActual, 1);
+  const e0  = estado(pctActual);
+  const e1  = ml ? ml.estado_previsto : estado(p1);
+  const tag = ml ? `[IA·${ml.confianza}] ` : '';
 
-  if (ml) {
-    // ── Predicción ML disponible ──────────────────────────────────────────
-    const p1p  = Math.round(ml.pct_prevista * 100);
-    const e1   = ml.estado_previsto;
-    const e0   = estado(pctActual);
-    const conf = ml.confianza;
-    const tag  = `[IA·${conf}]`;
-
-    if (e1 === e0)
-      return `${tag} Se mantendrá ${e1.toLowerCase()} en 1h (${p1p}% previsto)`;
-    if (ml.pct_prevista > pctActual)
-      return `${tag} ⚠️ Podría estar ${e1.toLowerCase()} en 1h (${p1p}% previsto)`;
-    return `${tag} ✅ Mejorará a ${e1.toLowerCase()} en 1h (${p1p}% previsto)`;
-
-  } else {
-    // ── Fallback: patrones históricos ─────────────────────────────────────
-    const p1  = _predPatrones(id, pctActual, 1);
-    const e1  = estado(p1);
-    const e0  = estado(pctActual);
-    const p1p = Math.round(p1 * 100);
-
-    if (e1 === e0)      return `Se mantendrá ${e1.toLowerCase()} en 1h (${p1p}% previsto)`;
-    if (p1 > pctActual) return `⚠️ Podría estar ${e1.toLowerCase()} en 1h (${p1p}% previsto)`;
-    return `✅ Mejorará a ${e1.toLowerCase()} en 1h (${p1p}% previsto)`;
+  // Lenguaje natural según transición de estado
+  if (e0 === 'LIBRE') {
+    if (e1 === 'LIBRE')       return `${tag}Seguirá libre en 1h 👍`;
+    if (e1 === 'DISPONIBLE')  return `${tag}En 1h habrá algo más de demanda`;
+    /* e1 === LLENO */        return `${tag}⚠️ Puede llenarse en 1h`;
   }
+  if (e0 === 'DISPONIBLE') {
+    if (e1 === 'DISPONIBLE')  return `${tag}Seguirá habiendo plazas en 1h`;
+    if (e1 === 'LIBRE')       return `${tag}✅ En 1h estará más tranquilo`;
+    /* e1 === LLENO */        return `${tag}⚠️ Puede llenarse en 1h`;
+  }
+  /* e0 === LLENO */
+  if (e1 === 'LLENO')         return `${tag}⚠️ Seguirá lleno en 1h`;
+  if (e1 === 'DISPONIBLE')    return `${tag}✅ En 1h habrá plazas disponibles`;
+  /* e1 === LIBRE */          return `${tag}✅ En 1h estará muy tranquilo`;
 }
