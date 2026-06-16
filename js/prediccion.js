@@ -190,11 +190,10 @@ function textoPrediccion(id, pctActual) {
   const ml = _predML(id, 1);
 
   if (!ml) {
-    // Sin predicción ML disponible: mostrar tendencia real del Ayuntamiento si la hay
     const tendencia = window._datosActuales?.[id]?.tendencia;
-    if (tendencia === 'SUBIENDO') return '📈 Subiendo · modelo actualizando';
-    if (tendencia === 'BAJANDO')  return '📉 Bajando · modelo actualizando';
-    return '🤖 Modelo ML actualizando...';
+    if (tendencia === 'SUBIENDO') return '📈 Tendencia al alza · modelo iniciando';
+    if (tendencia === 'BAJANDO')  return '📉 Tendencia a la baja · modelo iniciando';
+    return '🤖 Iniciando modelo ML...';
   }
 
   const e0  = estado(pctActual);

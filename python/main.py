@@ -98,7 +98,8 @@ def exportar_json(df) -> None:
 
 def subir_supabase(df) -> None:
     """Inserta el estado actual en la tabla parking_estado de Supabase."""
-    import requests  # ya en requirements.txt
+    import requests
+    import math
 
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
@@ -113,18 +114,42 @@ def subir_supabase(df) -> None:
         "Prefer": "return=minimal",
     }
 
+    # IDs válidos del catálogo — el CSV del Ayuntamiento puede traer filas extra
+    IDS_VALIDOS = {"CE", "MA", "CA", "PA", "AN", "TE", "AL", "SJ", "CY", "PB"}
+
+    def safe_int(val, default=0):
+        try:
+            f = float(val)
+            return default if math.isnan(f) else int(f)
+        except (TypeError, ValueError):
+            return default
+
+    def safe_float(val, default=0.0):
+        try:
+            f = float(val)
+            return default if math.isnan(f) else round(f, 4)
+        except (TypeError, ValueError):
+            return default
+
     registros = []
     for _, row in df.iterrows():
+        pid = str(row.get("id", "")).strip().upper()
+        if pid not in IDS_VALIDOS:
+            continue  # ignorar filas sin match en el catálogo
         registros.append({
-            "parking_id":    row.get("id", ""),
-            "parking_nombre": row.get("nombre", ""),
-            "libres":        int(row.get("libres", 0)),
-            "ocupados":      int(row.get("ocupados", 0)),
-            "capacidad":     int(row.get("capacidad_total", 0)),
-            "pct_ocupacion": float(row.get("pct_ocupacion", 0)),
-            "estado":        str(row.get("estado", "LIBRE")),
-            "tendencia":     int(row.get("tendencia_num", 0)),
+            "parking_id":     pid,
+            "parking_nombre": str(row.get("nombre", pid)),
+            "libres":         safe_int(row.get("libres")),
+            "ocupados":       safe_int(row.get("ocupados")),
+            "capacidad":      safe_int(row.get("capacidad_total")),
+            "pct_ocupacion":  safe_float(row.get("pct_ocupacion")),
+            "estado":         str(row.get("estado", "LIBRE")),
+            "tendencia":      0,
         })
+
+    if not registros:
+        logger.warning("Supabase: ningún registro válido para insertar.")
+        return
 
     resp = requests.post(endpoint, headers=headers, json=registros, timeout=10)
     resp.raise_for_status()
@@ -157,13 +182,19 @@ def ciclo() -> None:
                 from modelo.predict import predecir_todos, subir_predicciones_supabase
 
                 # Construimos el dict de estado actual para el predictor
-                datos_actuales = {
-                    row["id"]: {
-                        "pct":    float(row.get("pct_ocupacion", 0.5)),
-                        "libres": int(row.get("libres", 0)),
-                    }
-                    for _, row in df.iterrows() if row.get("id")
-                }
+                IDS_VALIDOS = {"CE", "MA", "CA", "PA", "AN", "TE", "AL", "SJ", "CY", "PB"}
+                datos_actuales = {}
+                for _, row in df.iterrows():
+                    pid = str(row.get("id", "")).strip().upper()
+                    if pid not in IDS_VALIDOS:
+                        continue
+                    try:
+                        datos_actuales[pid] = {
+                            "pct":    float(row.get("pct_ocupacion") or 0.5),
+                            "libres": int(float(row.get("libres") or 0)),
+                        }
+                    except (ValueError, TypeError):
+                        continue
 
                 predicciones = predecir_todos(datos_actuales, horizontes=[1, 2, 3])
 

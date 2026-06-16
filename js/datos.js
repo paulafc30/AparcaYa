@@ -237,8 +237,14 @@ async function cargar() {
   // 1. Supabase — solo si la key está configurada con un valor real
   if (SUPABASE_ACTIVO) {
     try {
-      datos = await cargarDesdeSupabase();
-      fuente = 'Supabase';
+      const sb = await cargarDesdeSupabase();
+      // Solo aceptar si devuelve datos reales (tabla no vacía)
+      if (Object.keys(sb).length >= 5) {
+        datos = sb;
+        fuente = 'Supabase';
+      } else {
+        console.warn('[datos] Supabase conectado pero tabla parking_estado vacía — usando CSV');
+      }
     } catch (e) {
       console.warn('[datos] Supabase falló:', e.message);
     }
