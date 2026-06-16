@@ -111,17 +111,15 @@ header {
 .right { display: flex; flex-direction: column; overflow: hidden; }
 #map { flex: 1; min-height: 0; height: 100%; }
 
-/* ── Botón flotante (FAB) ─────────────────────────────────────────────────── */
+/* ── Botón flotante (FAB) — esquina inferior derecha ─────────────────────── */
 .chat-fab {
   position: fixed;
   bottom: 24px;
-  left: 24px;
+  right: 24px;
   width: 54px;
   height: 54px;
   border-radius: 50%;
   background: linear-gradient(135deg, #1e3a8a, #3b82f6);
-  color: white;
-  font-size: 26px;
   border: none;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(30,58,138,.45);
@@ -135,12 +133,23 @@ header {
   transform: scale(1.08);
   box-shadow: 0 6px 22px rgba(30,58,138,.55);
 }
+/* Flecha de navegación CSS (triángulo rotado 45°, estilo GPS) */
+.chat-fab::before {
+  content: '';
+  display: block;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 18px solid white;
+  transform: rotate(45deg);
+  margin-left: 4px; margin-bottom: 4px;
+}
 
 /* ── Panel flotante del chat ──────────────────────────────────────────────── */
 .chat-panel {
   position: fixed;
   bottom: 90px;
-  left: 24px;
+  right: 24px;
   width: 340px;
   height: 440px;
   background: white;

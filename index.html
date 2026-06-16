@@ -30,10 +30,8 @@
 
 </div><!-- /.main -->
 
-<!-- Botón flotante del chatbot -->
-<button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Asistente AparcaYa">
-  🤖
-</button>
+<!-- Botón flotante de navegación (esquina inferior derecha) -->
+<button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Asistente AparcaYa"></button>
 
 <!-- Panel flotante del chatbot -->
 <div class="chat-panel" id="chat-panel">
@@ -47,7 +45,7 @@
   <div class="msgs" id="msgs">
     <div class="msg bot">
       ¡Hola! Dime a dónde vas en Málaga y te recomiendo el parking más cercano 🚗<br>
-      <span style="opacity:.7;font-size:11px">Ej: "Voy a la Catedral" · "Desde Benalmádena al Centro" · "¿Cuál está más libre?"</span>
+      <span style="opacity:.7;font-size:11px">Ej: "Catedral" · "Desde Benalmádena al Centro" · "¿Cuál está más libre?"</span>
     </div>
   </div>
   <div class="chat-input">
@@ -56,8 +54,6 @@
       onkeydown="if(event.key==='Enter') enviar()"/>
     <button onclick="enviar()">➤</button>
   </div>
-</div>
-
 </div>
 
 <!-- Librerías externas -->
