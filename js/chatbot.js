@@ -262,12 +262,17 @@ function respuestaParking(parkId, label, minutosViaje) {
   html += `.<br>📍 ${c.dir} `;
   html += `<a href="#" onclick="focusPark('${parkId}');return false;" style="color:#3b82f6;font-size:11px">Ver en mapa</a>`;
 
-  // Predicción a la llegada (solo si hay tiempo de viaje y datos actuales)
+  // Predicción a la llegada — solo del modelo ML (Random Forest vía Supabase)
   let pctLlegada = pctNow;   // base para decidir si sugerir alternativa
   if (minutosViaje && d) {
-    pctLlegada = predecirHora(parkId, d.pct, minutosViaje / 60);
-    const eL = estado(pctLlegada), cL = colorEstado(pctLlegada);
-    html += `<br>🕐 A la llegada (~${minutosViaje} min): <span style="color:${cL};font-weight:700">${eL}</span> (${Math.round(pctLlegada * 100)}%).`;
+    const mlPred = predecirHora(parkId, d.pct, minutosViaje / 60);
+    if (mlPred !== null) {
+      pctLlegada = mlPred;
+      const eL = estado(mlPred), cL = colorEstado(mlPred);
+      html += `<br>🤖 A la llegada (~${minutosViaje} min): <span style="color:${cL};font-weight:700">${eL}</span> (${Math.round(mlPred * 100)}%).`;
+    } else {
+      html += `<br><span style="color:#94a3b8;font-size:11px">Predicción de llegada no disponible — modelo ML actualizando</span>`;
+    }
   }
 
   // Si va a estar lleno (o está lleno ahora), buscar el siguiente más cercano disponible

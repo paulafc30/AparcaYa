@@ -158,97 +158,61 @@ function _predML(id, horizonte) {
 }
 
 
-// ── FALLBACK: MODELO DE PATRONES HISTÓRICOS ──────────────────────────────────
-
-/**
- * Predice el % de ocupación de un parking en N horas usando los patrones
- * históricos de catalogo.js. Se activa solo cuando las predicciones ML no
- * están disponibles.
- *
- * Algoritmo de blending:
- *   1. Patrón histórico para la HORA FUTURA (60% del peso)
- *   2. Ratio actual vs. patrón de ahora para detectar días atípicos (40%)
- *
- * Ejemplo:
- *   Son las 10h. El parking está al 95% pero el patrón esperaba 88%.
- *   Ratio = 0.95 / 0.88 ≈ 1.08  (hoy va un 8% más lleno de lo normal)
- *   A las 12h el patrón espera 90%
- *   → Predicción = 0.6 × 0.90 + 0.4 × (0.90 × 1.08) = 93%
- *
- * @param {string} id           - ID del parking (ej: 'CE', 'CY')
- * @param {number} pctActual    - Ocupación actual entre 0 y 1
- * @param {number} horasDelante - Horas hacia el futuro
- * @returns {number} Ocupación prevista entre 0 y 1
- */
-function _predPatrones(id, pctActual, horasDelante) {
-  const tipo = TIPO[id] || 'centro';
-
-  const futuro     = new Date(Date.now() + horasDelante * 3600000);
-  const horaFutura = futuro.getHours();
-  const diaFuturo  = futuro.getDay();
-
-  const patronFuturo  = PATRONES[tipo][horaFutura][diaFuturo];
-  const horaActual    = new Date().getHours();
-  const diaActual     = new Date().getDay();
-  const patronActual  = PATRONES[tipo][horaActual][diaActual];
-  const ratio         = patronActual > 0.01 ? pctActual / patronActual : 1;
-
-  const pctPrevisto = 0.60 * patronFuturo + 0.40 * (patronFuturo * ratio);
-  return Math.min(1, Math.max(0, pctPrevisto));
-}
-
-
 // ── API PÚBLICA ───────────────────────────────────────────────────────────────
 
 /**
  * Predice el % de ocupación de un parking en N horas desde ahora.
- * Usa predicciones ML si están disponibles, patrones si no.
+ * SOLO usa el modelo Random Forest (predicciones almacenadas en Supabase).
+ * Si el modelo no está disponible devuelve null — no hay fallback inventado.
  *
  * @param {string} id           - ID del parking
- * @param {number} pctActual    - Ocupación actual entre 0 y 1
+ * @param {number} pctActual    - Ocupación actual (no usado si hay ML, se mantiene por firma)
  * @param {number} horasDelante - Horas hacia el futuro (1, 2 ó 3)
- * @returns {number} Ocupación prevista entre 0 y 1
+ * @returns {number|null} Ocupación prevista [0–1] o null si el modelo no está listo
  */
 function predecirHora(id, pctActual, horasDelante) {
-  const ml = _predML(id, horasDelante);
-  if (ml) return ml.pct_prevista;
-  return _predPatrones(id, pctActual, horasDelante);
+  // Redondear al horizonte más cercano disponible (1, 2 ó 3 h)
+  const horizonte = Math.min(3, Math.max(1, Math.round(horasDelante)));
+  const ml = _predML(id, horizonte);
+  return ml ? ml.pct_prevista : null;
 }
 
 /**
- * Genera el texto de predicción a 1 hora vista en lenguaje natural.
- * Usa predicciones ML si están disponibles; patrones históricos como fallback.
- *
- * Ejemplos:
- *   "Seguirá libre en 1h 👍"
- *   "Seguirá habiendo plazas en 1h"
- *   "⚠️ Puede llenarse en 1h"
- *   "✅ En 1h habrá plazas disponibles"
+ * Genera el texto de predicción a 1h para las tarjetas del sidebar.
+ * Fuente: SOLO predicciones ML del modelo Random Forest (Supabase).
+ * Cuando el modelo no tiene datos recientes, indica que está actualizando.
  *
  * @param {string} id        - ID del parking
  * @param {number} pctActual - Ocupación actual entre 0 y 1
  * @returns {string}
  */
 function textoPrediccion(id, pctActual) {
-  const ml  = _predML(id, 1);
-  const p1  = ml ? ml.pct_prevista : _predPatrones(id, pctActual, 1);
-  const e0  = estado(pctActual);
-  const e1  = ml ? ml.estado_previsto : estado(p1);
-  const tag = ml ? `[IA·${ml.confianza}] ` : '';
+  const ml = _predML(id, 1);
 
-  // Lenguaje natural según transición de estado
+  if (!ml) {
+    // Sin predicción ML disponible: mostrar tendencia real del Ayuntamiento si la hay
+    const tendencia = window._datosActuales?.[id]?.tendencia;
+    if (tendencia === 'SUBIENDO') return '📈 Subiendo · modelo actualizando';
+    if (tendencia === 'BAJANDO')  return '📉 Bajando · modelo actualizando';
+    return '🤖 Modelo ML actualizando...';
+  }
+
+  const e0  = estado(pctActual);
+  const e1  = ml.estado_previsto;
+  const tag = `[IA·${ml.confianza}] `;
+
   if (e0 === 'LIBRE') {
     if (e1 === 'LIBRE')       return `${tag}Seguirá libre en 1h 👍`;
     if (e1 === 'DISPONIBLE')  return `${tag}En 1h habrá algo más de demanda`;
-    /* e1 === LLENO */        return `${tag}⚠️ Puede llenarse en 1h`;
+    return                           `${tag}⚠️ Puede llenarse en 1h`;
   }
   if (e0 === 'DISPONIBLE') {
     if (e1 === 'DISPONIBLE')  return `${tag}Seguirá habiendo plazas en 1h`;
     if (e1 === 'LIBRE')       return `${tag}✅ En 1h estará más tranquilo`;
-    /* e1 === LLENO */        return `${tag}⚠️ Puede llenarse en 1h`;
+    return                           `${tag}⚠️ Puede llenarse en 1h`;
   }
-  /* e0 === LLENO */
+  // e0 === LLENO
   if (e1 === 'LLENO')         return `${tag}⚠️ Seguirá lleno en 1h`;
-  if (e1 === 'DISPONIBLE')    return `${tag}✅ En 1h habrá plazas disponibles`;
-  /* e1 === LIBRE */          return `${tag}✅ En 1h estará muy tranquilo`;
+  if (e1 === 'DISPONIBLE')    return `${tag}✅ En 1h habrá plazas`;
+  return                             `${tag}✅ En 1h estará muy tranquilo`;
 }

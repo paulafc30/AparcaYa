@@ -35,8 +35,9 @@ const PROXIES = [
 ];
 
 // Supabase — sustituir SUPABASE_KEY por la anon key real del proyecto en supabase.co
-const SUPABASE_URL   = 'https://nbjkulgjeshzdnxxcohc.supabase.co';
-const SUPABASE_KEY   = 'sb_secret_gwzAIzwHnqlBdQvlbAIhIA__ndkGfVv';  // ← reemplazar
+const SUPABASE_URL = 'https://nbjkulgjeshzdnxxcohc.supabase.co';
+const SUPABASE_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iamt1bGdqZXNoemRueHhjb2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjAwNTAsImV4cCI6MjA5NzE5NjA1MH0.980oFNXvE6pYJLXNzFfSH6_Xp-N0GA9z3QYGoVxevtY';
 const SUPABASE_TABLA = 'parking_estado';
 
 // Detecta si la key es el placeholder para saltar Supabase directamente
@@ -116,7 +117,9 @@ function parsearCSV(csv) {
     // El CSV del Ayuntamiento usa columna 'id' (código) y 'libres' (plazas libres).
     // Formato verificado: ocupappublicosmun.csv → columnas: dato, id, libres, ...
     const id = (row['id'] || row['ID'] || '').toString().trim().toUpperCase();
-    const libres = parseInt(row['libres'] || row['Libres'] || row['LIBRES'] || 0);
+    const libres = parseInt(
+      row['libres'] || row['Libres'] || row['LIBRES'] || 0,
+    );
 
     if (!id || !CAT[id]) {
       // Fallback: si no hay columna 'id', intentar mapear por nombre
@@ -126,9 +129,10 @@ function parsearCSV(csv) {
       const cap2 = CAT[idPorNombre]?.cap || 1;
       const libresPorNombre = parseInt(row['libres'] || row['Libres'] || 0);
       const ocupados2 = parseInt(row['Ocupados'] || row['ocupados'] || 0);
-      const pct2 = libresPorNombre > 0
-        ? Math.min(1, (cap2 - libresPorNombre) / cap2)
-        : Math.min(1, ocupados2 / cap2);
+      const pct2 =
+        libresPorNombre > 0
+          ? Math.min(1, (cap2 - libresPorNombre) / cap2)
+          : Math.min(1, ocupados2 / cap2);
       datos[idPorNombre] = { libres: libresPorNombre, pct: pct2, tendencia: 0 };
       return;
     }
@@ -189,18 +193,24 @@ async function cargarDesdeCSV() {
       const d = parsearCSV(csv);
       if (Object.keys(d).length > 0) return d;
     }
-  } catch { /* sigue al proxy */ }
+  } catch {
+    /* sigue al proxy */
+  }
 
   // 2. Proxies CORS en cascada
   for (const proxy of PROXIES) {
     try {
-      const r = await fetch(proxy + encodeURIComponent(URL_CSV), { cache: 'no-store' });
+      const r = await fetch(proxy + encodeURIComponent(URL_CSV), {
+        cache: 'no-store',
+      });
       if (r.ok) {
         const csv = await r.text();
         const d = parsearCSV(csv);
         if (Object.keys(d).length > 0) return d;
       }
-    } catch { /* prueba el siguiente proxy */ }
+    } catch {
+      /* prueba el siguiente proxy */
+    }
   }
 
   throw new Error('CSV no disponible por ninguna vía');
@@ -274,14 +284,21 @@ async function cargar() {
  */
 function actualizarUI(datos, fuente) {
   const now = new Date();
-  const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const hora = now.toLocaleTimeString('es-ES', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   const esDemo = fuente === 'demo';
 
   // Timestamp con fuente de datos
-  const labelFuente = fuente === 'Supabase'     ? '🟢 Supabase'
-                    : fuente === 'Ayuntamiento'  ? '🟢 Ayuntamiento'
-                    : '🟡 Simulación';
-  document.getElementById('last-update').textContent = `${hora} · ${labelFuente}`;
+  const labelFuente =
+    fuente === 'Supabase'
+      ? '🟢 Supabase'
+      : fuente === 'Ayuntamiento'
+        ? '🟢 Ayuntamiento'
+        : '🟡 Simulación';
+  document.getElementById('last-update').textContent =
+    `${hora} · ${labelFuente}`;
 
   // Banner de aviso si estamos en modo simulación
   let banner = document.getElementById('demo-banner');
@@ -289,10 +306,12 @@ function actualizarUI(datos, fuente) {
     if (!banner) {
       banner = document.createElement('div');
       banner.id = 'demo-banner';
-      banner.style.cssText = 'background:#fef3c7;color:#92400e;font-size:11px;padding:6px 14px;text-align:center;border-bottom:1px solid #fcd34d;';
+      banner.style.cssText =
+        'background:#fef3c7;color:#92400e;font-size:11px;padding:6px 14px;text-align:center;border-bottom:1px solid #fcd34d;';
       document.querySelector('.sidebar').prepend(banner);
     }
-    banner.textContent = '⚠️ Sin conexión con el Ayuntamiento — mostrando estimación por patrones horarios';
+    banner.textContent =
+      '⚠️ Sin conexión con el Ayuntamiento — mostrando estimación por patrones horarios';
   } else if (banner) {
     banner.remove();
   }
