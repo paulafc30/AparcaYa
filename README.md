@@ -62,34 +62,45 @@ Nunca trabajamos directamente en `main`. Se actualiza haciendo un **Pull Request
 
 ## Estructura del proyecto
 
+
 ```
 AparcaYa/
-├── index.html                  ← App principal
-├── css/
+├── .github/                ← Configuración CI/CD
+│   └── workflows/
+|           └── fetch_data.yml      ← Cron cada 5 min → Python → Supabase
+├── css/                    ← Estilos
 │   └── styles.css
-├── js/
-│   ├── catalogo.js             ← Datos estáticos + patrones de predicción
-│   ├── prediccion.js           ← Modelo de predicción por patrones
-│   ├── mapa.js                 ← Leaflet: mapa e iconos
-│   ├── chatbot.js              ← Asistente conversacional (+100 destinos)
-│   ├── datos.js                ← Carga CSV / Supabase / fallback
-│   └── app.js                  ← Init y loop de actualización
-├── python/
-│   ├── main.py                 ← Orquestador (--once para el Action)
-│   ├── requirements.txt
-│   └── ingesta/
-│       ├── downloader.py       ← Descarga CSV del Ayuntamiento
-│       └── processor.py        ← Enriquecimiento y cálculo de estado
-├── data/
-│   ├── catalogo.csv            ← Catálogo de parkings (id, coords, capacidad)
-│   └── dataset_historico_aparcaya.csv ← 14 880 registros sintéticos
-├── supabase/
-│   └── schema.sql              ← DDL: tablas, vistas, RLS
-└── .github/
-    └── workflows/
-        └── fetch_data.yml      ← Cron cada 5 min → Python → Supabase
+├── data/                   ← Almacenamiento de datos
+│   ├── historico/          ← Registros históricos (historico_ocupacion.csv)
+│   ├── processed/          ← Datos procesados (estado_actual.json, ocupacion_actual.csv)
+│   ├── raw/                ← Datos brutos (ej. catálogos descargados)
+│   ├── catalogo.csv        ← Catálogo de parkings (id, coords, capacidad)
+│   └── dataset_historico_aparcaya.csv  ← 14 880 registros sintéticos
+├── js/                     ← Lógica Frontend
+│   ├── app.js              ← Init y loop de actualización
+│   ├── catalogo.js         ← Datos estáticos + patrones de predicción
+│   ├── chatbot.js          ← Asistente conversacional
+│   ├── datos.js            ← Carga CSV / Supabase / fallback
+│   ├── mapa.js             ← Leaflet: mapa e iconos
+│   └── prediccion.js       ← Modelo de predicción por patrones
+├── logs/                   ← Logs de ejecución
+│   └── parkmalaga.log
+├── python/                 ← Backend / Data Pipeline
+│   ├── api_bridge/         ← Interfaz con APIs externas
+│   ├── ingesta/            ← Proceso ETL
+│   │   ├── downloader.py   ← Descarga CSV del Ayuntamiento
+│   │   └── processor.py    ← Enriquecimiento y cálculo de estado
+│   ├── modelo/             ← Machine Learning
+│   │   ├── model.pkl       ← Modelo entrenado
+│   │   ├── predict.py      ← Lógica de inferencia
+│   │   └── train.py        ← Script de entrenamiento
+│   ├── main.py             ← Orquestador del pipeline
+│   └── requirements.txt    ← Dependencias de Python
+├── supabase/               ← Backend Database
+│   └── schema.sql          ← DDL: tablas, vistas, RLS
+├── index.html              ← App principal
+└── .gitignore              ← Archivos excluidos del control de versiones
 ```
-
 ---
 
 ## Flujo de trabajo con Git (resumen rápido)
