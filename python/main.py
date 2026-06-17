@@ -189,6 +189,72 @@ def subir_supabase(df) -> None:
     logger.info(f"Supabase: {len(registros)} filas insertadas.")
 
 
+def subir_vision_supabase(vision_data: dict) -> None:
+    """
+    Inserta en parking_estado el resultado de la cámara de visión artificial
+    para un parking que NO está en el CSV del Ayuntamiento (p.ej. SC = SACABA).
+
+    Calcula la tendencia igual que subir_supabase(): consultando parking_ultimo
+    para obtener el pct anterior y comparando con el valor nuevo.
+    """
+    import requests
+    import math
+
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    if not url or not key:
+        raise EnvironmentError("Variables SUPABASE_URL / SUPABASE_KEY no definidas")
+
+    sb_headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    }
+
+    pid = vision_data["parking_id"]
+    pct = round(float(vision_data["pct_ocupacion"]), 4)
+
+    # Leer pct anterior desde parking_ultimo para calcular tendencia
+    tendencia = 0
+    try:
+        r = requests.get(
+            f"{url}/rest/v1/parking_ultimo?select=pct_ocupacion&parking_id=eq.{pid}",
+            headers=sb_headers, timeout=8,
+        )
+        if r.ok and r.json():
+            pct_prev = float(r.json()[0]["pct_ocupacion"])
+            delta = pct - pct_prev
+            tendencia = 1 if delta > 0.02 else (-1 if delta < -0.02 else 0)
+    except Exception as e:
+        logger.warning(f"No se pudo leer tendencia previa para {pid}: {e}")
+
+    if pct >= 0.90:
+        estado = "LLENO"
+    elif pct >= 0.50:
+        estado = "DISPONIBLE"
+    else:
+        estado = "LIBRE"
+
+    registro = {
+        "parking_id":     pid,
+        "parking_nombre": vision_data.get("parking_id", pid),   # sin nombre en dict
+        "libres":         int(vision_data["libres"]),
+        "ocupados":       int(vision_data["ocupadas"]),
+        "capacidad":      int(vision_data["total"]),
+        "pct_ocupacion":  pct,
+        "estado":         estado,
+        "tendencia":      tendencia,
+    }
+
+    resp = requests.post(
+        f"{url}/rest/v1/parking_estado",
+        headers=sb_headers, json=[registro], timeout=10,
+    )
+    resp.raise_for_status()
+    logger.info(f"Supabase [{pid}]: visión insertada — {registro['libres']} libres, {pct*100:.0f}% ocup.")
+
+
 def ciclo() -> None:
     """Un ciclo completo de ingesta → procesado → (predicción) → exportación."""
     logger.info("── Inicio de ciclo ──────────────────────────────────────")
@@ -196,12 +262,21 @@ def ciclo() -> None:
         # 1. Descarga
         df_raw = descargar_ocupacion()
 
-        # 2. Visión artificial (solo si el modelo está entrenado y hay imágenes)
+        # 2. Visión artificial para SA (Salitre) — enriquece los datos del CSV
         #    Retorna None sin error si el modelo aún no existe
-        vision = ejecutar_vision(parking_id="SA")
+        vision_sa = ejecutar_vision(parking_id="SA")
 
         # 3. Procesado (visión sobreescribe datos de SA si está disponible)
-        df = procesar(df_raw, vision_data=vision)
+        df = procesar(df_raw, vision_data=vision_sa)
+
+        # 2b. Visión para SC (SACABA) — parking solo en cámara, no en CSV del Ayuntamiento
+        #     Se sube directamente a Supabase sin pasar por el pipeline de CSV
+        vision_sc = ejecutar_vision(parking_id="SC")
+        if vision_sc:
+            try:
+                subir_vision_supabase(vision_sc)
+            except Exception as e:
+                logger.warning(f"Supabase SC (visión) omitido: {e}")
 
         # 4. Exportar JSON con estado actual
         exportar_json(df)

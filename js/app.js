@@ -32,6 +32,11 @@ window.addEventListener('load', async () => {
   // 1. Crear el mapa interactivo en el div #map del HTML
   initMapa();
 
+  // Contador dinámico en el header — se lee de CAT para actualizarse solo
+  // si se añaden o eliminan parkings del catálogo.
+  const countEl = document.getElementById('parking-count');
+  if (countEl) countEl.textContent = Object.keys(CAT).length;
+
   // 2. Descarga predicciones ML de Supabase ANTES de renderizar las tarjetas.
   //    Así las cards muestran [IA·alta] desde el primer render, no 60s después.
   await cargarPredicciones().catch(() => {});

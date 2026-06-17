@@ -32,6 +32,11 @@ const CAT = {
   CY: { n: 'Carlos Haya',         dir: 'Av. Santa Rosa de Lima',   lat: 36.7119,    lng: -4.4410,   cap: 439 },
   PB: { n: 'Pío Baroja',          dir: 'Av. Pío Baroja - El Palo', lat: 36.7190,    lng: -4.3648,   cap: 261 },  
   SA: { n: 'Salitre',             dir: 'C/ Salitre',               lat: 36.7136,    lng: -4.42626,   cap: 435 },
+  // SC = SACABA — aparcamiento en vía pública monitorizado por cámara TV16
+  // Fuente: Ayuntamiento de Málaga, cámara TV16-SACABA (movilidad.malaga.eu, distrito 7)
+  // cap: determinado por marcador_plazas.py al marcar las plazas visibles en cámara
+  // ⚠️ coords aproximadas — verificar en https://movilidad.malaga.eu/es/servicios/camaras-de-trafico/distrito-7/tv-16/
+  SC: { n: 'SACABA',              dir: 'Av. Manuel Alvar',          lat: 36.7105,    lng: -4.4545,    cap: 0, vision: true },
 };
 
 // ── 2. TIPO DE PARKING ────────────────────────────────────────────────────────
@@ -50,6 +55,7 @@ const TIPO = {
   AN: 'comercial', // El Corte Inglés, zona oeste
   SJ: 'comercial', // Universidad, Vialia, estación tren
   CA: 'comercial', // SoHo, CAC, zona Perchel
+  SC: 'comercial', // Av. Manuel Alvar, barrio Sacaba (Carranque) — visión artificial
 };
 
 // ── 3. PATRONES DE OCUPACIÓN POR HORA Y DÍA ──────────────────────────────────

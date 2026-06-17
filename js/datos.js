@@ -94,6 +94,9 @@ function datosDemo() {
   const dia = now.getDay();
   const demo = {};
   Object.entries(CAT).forEach(([id, c]) => {
+    // Los parkings vision: true (p.ej. SACABA) no tienen datos de demo;
+    // sus datos vienen exclusivamente del pipeline de visión artificial.
+    if (c.vision) return;
     const tipo = TIPO[id] || 'centro';
     const pct = PATRONES[tipo][hora][dia];
     const libres = Math.round(c.cap * (1 - pct));
@@ -274,10 +277,11 @@ async function cargar() {
     fuente = 'demo';
   }
 
-  // Completar parkings sin datos con fallback de patrones
+  // Completar parkings sin datos con fallback de patrones.
+  // Los parkings vision:true se omiten si no hay dato real — muestran '-' en la UI.
   const demo = datosDemo();
   Object.keys(CAT).forEach((id) => {
-    if (!datos[id]) datos[id] = demo[id];
+    if (!datos[id] && !CAT[id].vision) datos[id] = demo[id];
   });
 
   window._datosActuales = datos;

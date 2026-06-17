@@ -168,6 +168,11 @@ const DESTINOS = {
   'plaza de la marina':        { label:'Plaza de la Marina',          lat:36.7176, lng:-4.4200 },
   'plaza marina':              { label:'Plaza de la Marina',          lat:36.7176, lng:-4.4200 },
   'marina':                    { label:'Plaza de la Marina',          lat:36.7176, lng:-4.4200 },
+  'sacaba':                    { label:'Aparcamiento SACABA',         lat:36.7105, lng:-4.4545 },
+  'parking sacaba':            { label:'Aparcamiento SACABA',         lat:36.7105, lng:-4.4545 },
+  'manuel alvar':              { label:'Aparcamiento SACABA',         lat:36.7105, lng:-4.4545 },
+  'av manuel alvar':           { label:'Aparcamiento SACABA',         lat:36.7105, lng:-4.4545 },
+  'avenida manuel alvar':      { label:'Aparcamiento SACABA',         lat:36.7105, lng:-4.4545 },
 
   // ── Transporte ────────────────────────────────────────────────────────────
   'estacion tren':             { label:'Estación María Zambrano',     lat:36.7124, lng:-4.4316 },
