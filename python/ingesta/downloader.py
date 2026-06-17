@@ -32,6 +32,18 @@ RAW_DIR.mkdir(parents=True, exist_ok=True)
 
 TIMEOUT = 10  # segundos
 
+# URLs de cámaras de tráfico del Ayuntamiento de Málaga (movilidad.malaga.eu)
+# Formato: parking_id → URL de la imagen JPEG de la cámara
+CAMARAS = {
+    "SC": "https://ctraficomovilidad.malaga.eu/recursos/movilidad/camaras_trafico/TV-16.jpg",
+    # Para añadir más cámaras en el futuro:
+    # "XX": "https://ctraficomovilidad.malaga.eu/.../TV-XX.jpg",
+}
+
+# Directorio donde se guardan las imágenes de cámara descargadas
+IMAGEN_DIR = PROJECT_ROOT / "data" / "imagen"
+IMAGEN_DIR.mkdir(parents=True, exist_ok=True)
+
 # Cabeceras comunes — a nivel de módulo para que las usen ambas funciones.
 # El servidor del Ayuntamiento bloquea peticiones sin cabeceras de navegador.
 HEADERS = {
@@ -141,21 +153,67 @@ def descargar_catalogo() -> pd.DataFrame:
     return df
 
 
-def ejecutar_vision(parking_id: str = "SA") -> "dict | None":
+def descargar_imagen_camara(parking_id: str) -> "Path | None":
     """
-    Llama al módulo de visión artificial y devuelve el estado de las plazas
-    del parking monitorizado por cámara.
+    Descarga la imagen actual de la cámara de tráfico del Ayuntamiento de Málaga
+    para el parking indicado y la guarda en data/imagen/<parking_id>.jpg.
+
+    La URL de cada cámara está en el diccionario CAMARAS de este módulo.
+    Retorna la ruta local del archivo descargado, o None si falla.
+    """
+    url_camara = CAMARAS.get(parking_id)
+    if not url_camara:
+        logger.warning(f"No hay cámara configurada para el parking '{parking_id}'.")
+        return None
+
+    nombre_archivo = f"{parking_id}.jpg"
+    ruta_local = IMAGEN_DIR / nombre_archivo
+
+    try:
+        resp = requests.get(url_camara, headers=HEADERS, timeout=TIMEOUT)
+        resp.raise_for_status()
+        with open(ruta_local, "wb") as f:
+            f.write(resp.content)
+        logger.info(f"Cámara [{parking_id}]: imagen descargada → {ruta_local.name}")
+        return ruta_local
+    except requests.RequestException as e:
+        logger.warning(f"Cámara [{parking_id}]: no se pudo descargar imagen: {e}")
+        return None
+
+
+def ejecutar_vision(parking_id: str = "SC") -> "dict | None":
+    """
+    Pipeline completo de visión artificial para un parking con cámara:
+      1. Descarga la imagen actual de la cámara del Ayuntamiento
+      2. Extrae los recortes de cada plaza (usando plazas_config.json de Luisa)
+      3. Clasifica cada recorte con el modelo MobileNetV2 entrenado
 
     Retorna None si:
-      - el modelo vision_model.h5 no existe (aún no entrenado)
-      - no hay imágenes de plazas en data/vision_dataset/
-      - TensorFlow no está instalado en el entorno actual
+      - No hay cámara configurada para ese parking (no está en CAMARAS)
+      - La imagen no se puede descargar
+      - plazas_config.json no existe (ejecutar marcador_plazas.py primero)
+      - El modelo vision_model.h5 no existe (ejecutar train_vision.py primero)
 
     Parámetros:
-        parking_id : ID del parking con cámara instalada (default 'SA' = Salitre)
+        parking_id : ID del parking con cámara instalada (default 'SC' = SACABA)
     """
     import sys as _sys
     _sys.path.insert(0, str(PROJECT_ROOT / "python"))
+
+    # 1. Descargar imagen fresca de la cámara
+    img_path = descargar_imagen_camara(parking_id)
+    if img_path is None:
+        return None
+
+    # 2. Extraer recortes de cada plaza usando la config de Luisa
+    try:
+        from vision.extractor_plazas import extraer_plazas
+        extraer_plazas(imagen=str(img_path))
+    except Exception as e:
+        logger.warning(f"Visión [{parking_id}]: extracción de plazas falló: {e}")
+        return None
+
+    # 3. Clasificar cada recorte con el modelo de visión
     try:
         from vision.predict_vision import predecir_plazas
         resultado = predecir_plazas(parking_id=parking_id)
@@ -167,7 +225,7 @@ def ejecutar_vision(parking_id: str = "SA") -> "dict | None":
             )
         return resultado
     except Exception as e:
-        logger.warning(f"Módulo de visión no disponible: {e}")
+        logger.warning(f"Visión [{parking_id}]: clasificación falló: {e}")
         return None
 
 
