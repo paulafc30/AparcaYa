@@ -28,7 +28,7 @@ from datetime import datetime
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "python"))
 
-from ingesta.downloader import descargar_ocupacion, descargar_catalogo
+from ingesta.downloader import descargar_ocupacion, descargar_catalogo, ejecutar_vision
 from ingesta.processor  import procesar
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ def subir_supabase(df) -> None:
     }
 
     # IDs válidos del catálogo — el CSV del Ayuntamiento puede traer filas extra
-    IDS_VALIDOS = {"CE", "MA", "CA", "PA", "AN", "TE", "AL", "SJ", "CY", "PB"}
+    IDS_VALIDOS = {"CE", "MA", "CA", "PA", "AN", "TE", "AL", "SJ", "CY", "PB", "SA"}
 
     def safe_int(val, default=0):
         try:
@@ -196,26 +196,30 @@ def ciclo() -> None:
         # 1. Descarga
         df_raw = descargar_ocupacion()
 
-        # 2. Procesado
-        df = procesar(df_raw)
+        # 2. Visión artificial (solo si el modelo está entrenado y hay imágenes)
+        #    Retorna None sin error si el modelo aún no existe
+        vision = ejecutar_vision(parking_id="SA")
 
-        # 3. Exportar JSON con estado actual
+        # 3. Procesado (visión sobreescribe datos de SA si está disponible)
+        df = procesar(df_raw, vision_data=vision)
+
+        # 4. Exportar JSON con estado actual
         exportar_json(df)
 
-        # 4. Push estado actual a Supabase
+        # 5. Push estado actual a Supabase
         try:
             subir_supabase(df)
         except Exception as e:
             logger.warning(f"Supabase estado omitido: {e}")
 
-        # 5. Predicciones ML (solo si el modelo está entrenado)
+        # 6. Predicciones ML (solo si el modelo está entrenado)
         modelo_path = PROJECT_ROOT / "python" / "modelo" / "model.pkl"
         if modelo_path.exists():
             try:
                 from modelo.predict import predecir_todos, subir_predicciones_supabase
 
                 # Construimos el dict de estado actual para el predictor
-                IDS_VALIDOS = {"CE", "MA", "CA", "PA", "AN", "TE", "AL", "SJ", "CY", "PB"}
+                IDS_VALIDOS = {"CE", "MA", "CA", "PA", "AN", "TE", "AL", "SJ", "CY", "PB", "SA"}
                 datos_actuales = {}
                 for _, row in df.iterrows():
                     pid = str(row.get("id", "")).strip().upper()

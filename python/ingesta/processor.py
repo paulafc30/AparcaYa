@@ -169,14 +169,63 @@ def acumular_historico(df: pd.DataFrame) -> None:
     logger.info(f"Histórico actualizado → {HISTORICO_FILE.name}")
 
 
-def procesar(df_ocup: pd.DataFrame) -> pd.DataFrame:
+def enriquecer_con_vision(df: pd.DataFrame, vision_data: dict) -> pd.DataFrame:
+    """
+    Sobreescribe las métricas del parking monitorizado por cámara con los
+    resultados de la clasificación por visión artificial.
+
+    Esto se ejecuta DESPUÉS de enriquecer() para que las columnas ya existan,
+    y ANTES de calcular_tendencia() para que el delta se calcule sobre datos reales.
+
+    Parámetros:
+        df          : DataFrame ya enriquecido con columnas libres, ocupados, pct_ocupacion, estado
+        vision_data : dict devuelto por predict_vision.predecir_plazas()
+    """
+    pid = vision_data.get("parking_id")
+    if not pid or pid not in df["id"].values:
+        logger.warning(f"Visión: parking_id '{pid}' no encontrado en los datos procesados.")
+        return df
+
+    libres   = int(vision_data["libres"])
+    ocupadas = int(vision_data["ocupadas"])
+    pct      = float(vision_data["pct_ocupacion"])
+
+    mask = df["id"] == pid
+    df.loc[mask, "libres"]        = libres
+    df.loc[mask, "ocupados"]      = ocupadas
+    df.loc[mask, "pct_ocupacion"] = round(pct, 4)
+
+    # Reclasificar estado con los umbrales estándar
+    if pct >= UMBRAL_LLENO:
+        estado = "LLENO"
+    elif pct >= UMBRAL_DISPONIBLE:
+        estado = "DISPONIBLE"
+    else:
+        estado = "LIBRE"
+    df.loc[mask, "estado"] = estado
+
+    logger.info(
+        f"Visión [{pid}]: {libres} libres / {ocupadas} ocupadas "
+        f"→ {pct*100:.0f}% — estado: {estado} (datos de cámara)"
+    )
+    return df
+
+
+def procesar(df_ocup: pd.DataFrame, vision_data: "dict | None" = None) -> pd.DataFrame:
     """
     Pipeline completo:
-        ocupación cruda → enriquecer → tendencia → guardar → acumular
+        ocupación cruda → enriquecer → [visión] → tendencia → guardar → acumular
     Devuelve el DataFrame procesado listo para el modelo.
+
+    Parámetros:
+        df_ocup     : DataFrame crudo de downloader.descargar_ocupacion()
+        vision_data : (opcional) dict de downloader.ejecutar_vision(); si se pasa,
+                      sobreescribe los datos del parking con cámara antes de tendencia.
     """
     df_cat = cargar_catalogo()
     df = enriquecer(df_ocup, df_cat)
+    if vision_data:
+        df = enriquecer_con_vision(df, vision_data)
     df = calcular_tendencia(df)
     guardar_procesado(df)
     acumular_historico(df)

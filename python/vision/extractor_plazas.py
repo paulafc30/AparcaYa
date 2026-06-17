@@ -1,38 +1,61 @@
+"""
+extractor_plazas.py
+====================
+Lee plazas_config.json (generado por marcador_plazas.py) y recorta
+cada plaza de la imagen de cámara, guardando las imágenes en
+data/vision_dataset/ para que predict_vision.py las clasifique.
+
+Uso:
+    python python/vision/extractor_plazas.py [--imagen TV-16_13.jpg]
+"""
+
 import cv2
 import json
-import os
+import argparse
+from pathlib import Path
 
-# Rutas
-BASE_DIR = r"B:\Data_Science\IA Y BIG DATA ENTORNOS 5G\AparcaYa"
-CONFIG_FILE = os.path.join(BASE_DIR, "python", "vision", "plazas_config.json")
-INPUT_IMAGE = os.path.join(BASE_DIR, "data", "imagen", "TV-16_13.jpg")
-OUTPUT_DIR = os.path.join(BASE_DIR, "data", "vision_dataset")
+# ── Rutas relativas al proyecto ───────────────────────────────────────────────
+ROOT        = Path(__file__).resolve().parents[2]
+IMAGE_DIR   = ROOT / "data" / "imagen"
+OUTPUT_DIR  = ROOT / "data" / "vision_dataset"
+CONFIG_FILE = Path(__file__).parent / "plazas_config.json"
 
-# Crear carpeta de salida si no existe
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+parser = argparse.ArgumentParser()
+parser.add_argument("--imagen", default="TV-16_13.jpg",
+                    help="Nombre del archivo de imagen en data/imagen/")
+args, _ = parser.parse_known_args()
+
+IMAGE_PATH = IMAGE_DIR / args.imagen
+
 
 def extraer_plazas():
-    # Cargar configuración
-    with open(CONFIG_FILE, 'r') as f:
-        config = json.load(f)
-    
-    # Cargar imagen
-    img = cv2.imread(INPUT_IMAGE)
-    if img is None:
-        print("Error: No se pudo leer la imagen.")
+    if not CONFIG_FILE.exists():
+        print(f"ERROR: falta {CONFIG_FILE}. Ejecuta primero marcador_plazas.py")
         return
 
-    # Extraer y guardar cada plaza
+    with open(CONFIG_FILE, 'r') as f:
+        config = json.load(f)
+
+    img = cv2.imread(str(IMAGE_PATH))
+    if img is None:
+        print(f"ERROR: no se pudo leer la imagen: {IMAGE_PATH}")
+        return
+
+    guardadas = 0
     for nombre_plaza, coords in config.items():
-        # Recorte (ROI - Region of Interest)
-        # Nota: Ajusta si necesitas invertir x e y dependiendo de cómo marcaste
         recorte = img[coords['y1']:coords['y2'], coords['x1']:coords['x2']]
-        
-        # Guardar archivo
-        output_path = os.path.join(OUTPUT_DIR, f"{nombre_plaza}.jpg")
-        cv2.imwrite(output_path, recorte)
-        print(f"Guardado: {output_path}")
+        if recorte.size == 0:
+            print(f"  ⚠️ {nombre_plaza}: recorte vacío, revisa las coordenadas")
+            continue
+        output_path = OUTPUT_DIR / f"{nombre_plaza}.jpg"
+        cv2.imwrite(str(output_path), recorte)
+        guardadas += 1
+
+    print(f"✅ {guardadas} recortes guardados en {OUTPUT_DIR}")
+
 
 if __name__ == "__main__":
     extraer_plazas()
-    print("Extracción completada con éxito.")

@@ -56,6 +56,7 @@ MODEL_PATH   = MODEL_DIR / "model.pkl"
 # ── Tipo de parking por ID (igual que predict.py y catalogo.js) ───────────────
 TIPO_PARKING = {
     "CE": "centro",    "MA": "centro",    "AL": "centro",  "TE": "centro",
+    "SA": "centro",    # Salitre (ID nuevo; MA ahora = Plaza de la Marina)
     "CY": "hospital",
     "PA": "playa",     "PB": "playa",
     "AN": "comercial", "SJ": "comercial", "CA": "comercial",

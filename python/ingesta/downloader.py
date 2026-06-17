@@ -141,6 +141,36 @@ def descargar_catalogo() -> pd.DataFrame:
     return df
 
 
+def ejecutar_vision(parking_id: str = "SA") -> "dict | None":
+    """
+    Llama al módulo de visión artificial y devuelve el estado de las plazas
+    del parking monitorizado por cámara.
+
+    Retorna None si:
+      - el modelo vision_model.h5 no existe (aún no entrenado)
+      - no hay imágenes de plazas en data/vision_dataset/
+      - TensorFlow no está instalado en el entorno actual
+
+    Parámetros:
+        parking_id : ID del parking con cámara instalada (default 'SA' = Salitre)
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(PROJECT_ROOT / "python"))
+    try:
+        from vision.predict_vision import predecir_plazas
+        resultado = predecir_plazas(parking_id=parking_id)
+        if resultado:
+            logger.info(
+                f"Visión [{parking_id}]: {resultado['libres']} libres / "
+                f"{resultado['ocupadas']} ocupadas → "
+                f"{resultado['pct_ocupacion']*100:.0f}%"
+            )
+        return resultado
+    except Exception as e:
+        logger.warning(f"Módulo de visión no disponible: {e}")
+        return None
+
+
 # ── Ejecución directa (prueba) ────────────────────────────────────────────────
 
 if __name__ == "__main__":

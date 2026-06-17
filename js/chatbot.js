@@ -162,6 +162,13 @@ const DESTINOS = {
   'ikea':                      { label:'IKEA',                        lat:36.7050, lng:-4.4448 },
   'lidl':                      { label:'Lidl',                        lat:36.7150, lng:-4.4280 },
 
+  // ── Parkings por nombre (acceso directo) ─────────────────────────────────
+  'salitre':                   { label:'Parking Salitre',             lat:36.7137, lng:-4.4263 },
+  'parking salitre':           { label:'Parking Salitre',             lat:36.7137, lng:-4.4263 },
+  'plaza de la marina':        { label:'Plaza de la Marina',          lat:36.7176, lng:-4.4200 },
+  'plaza marina':              { label:'Plaza de la Marina',          lat:36.7176, lng:-4.4200 },
+  'marina':                    { label:'Plaza de la Marina',          lat:36.7176, lng:-4.4200 },
+
   // ── Transporte ────────────────────────────────────────────────────────────
   'estacion tren':             { label:'Estación María Zambrano',     lat:36.7124, lng:-4.4316 },
   'maria zambrano':            { label:'Estación María Zambrano',     lat:36.7124, lng:-4.4316 },

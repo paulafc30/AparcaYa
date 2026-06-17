@@ -54,16 +54,18 @@ TIPO_COD = {"centro": 0, "comercial": 1, "hospital": 2, "playa": 3}
 # Tipos de cada parking (mismo que catalogo.js)
 TIPO_PARKING = {
     "CE": "centro", "MA": "centro", "AL": "centro", "TE": "centro",
+    "SA": "centro",    # Salitre (antes MA; MA ahora = Plaza de la Marina)
     "CY": "hospital",
     "PA": "playa",  "PB": "playa",
     "AN": "comercial", "SJ": "comercial", "CA": "comercial",
 }
 
-# Capacidades reales de SMASSA (verificadas en smassa.eu, junio 2026)
+# Capacidades de rotación verificadas en smassa.eu (junio 2026).
+# MA = Plaza de la Marina (antes Salitre). SA = Salitre (nuevo ID).
 CAPACIDADES = {
-    "CE": 409, "MA": 435, "CA": 350, "PA": 127,
+    "CE": 409, "MA": 450, "CA": 350, "PA": 127,
     "AN": 613, "TE": 187, "AL": 378, "SJ": 624,
-    "CY": 439, "PB": 261,
+    "CY": 439, "PB": 261, "SA": 435,
 }
 
 # Umbrales de estado (deben coincidir con prediccion.js)

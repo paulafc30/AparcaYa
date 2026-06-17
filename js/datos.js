@@ -54,11 +54,16 @@ window._datosActuales = {};
 // Aquí los traducimos a los IDs cortos que usamos internamente (CE, MA...).
 // Si el Ayuntamiento cambia algún nombre en su CSV, hay que actualizar este diccionario.
 // Nombres tal como aparecen en el CSV del Ayuntamiento → ID interno
-// Verificado contra smassa.eu (junio 2026). El parking "Salitre" aparece
-// a veces como "Salitre" en el CSV, no como "Marina".
+// Verificado contra smassa.eu y CSV del Ayuntamiento (junio 2026).
+// CAMBIO: MA ya no es "Salitre" sino "Plaza de la Marina". Salitre → SA.
 const NOMBRE_A_ID = {
   Cervantes: 'CE',
-  Salitre: 'MA',
+  // MA = Plaza de la Marina (renombrado por Luisa jun-2026)
+  'Plaza de la Marina': 'MA',
+  'Pz. de la Marina':   'MA',
+  Marina:               'MA',
+  // SA = Salitre (ID nuevo para el parking original de C/ Salitre)
+  Salitre: 'SA',
   Camas: 'CA',
   'El Palo': 'PA',
   Andalucia: 'AN',
