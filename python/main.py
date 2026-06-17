@@ -17,10 +17,12 @@ Uso:
 
 import argparse
 import logging
+import math
 import os
 import sys
 import time
 import json
+import requests
 from pathlib import Path
 from datetime import datetime
 
@@ -104,8 +106,6 @@ def subir_supabase(df) -> None:
     en vez de un archivo local que no persiste entre ejecuciones de GitHub Actions.
       +1 = SUBIENDO (pct sube > 2 pp) · 0 = ESTABLE · -1 = BAJANDO
     """
-    import requests
-    import math
 
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
@@ -197,8 +197,6 @@ def subir_vision_supabase(vision_data: dict) -> None:
     Calcula la tendencia igual que subir_supabase(): consultando parking_ultimo
     para obtener el pct anterior y comparando con el valor nuevo.
     """
-    import requests
-    import math
 
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
@@ -263,7 +261,6 @@ def ciclo() -> None:
         df_raw = descargar_ocupacion()
 
         # 2. Visión artificial para SA (Salitre) — enriquece los datos del CSV
-        #    Retorna None sin error si el modelo aún no existe
         vision_sa = ejecutar_vision(parking_id="SA")
 
         # 3. Procesado (visión sobreescribe datos de SA si está disponible)

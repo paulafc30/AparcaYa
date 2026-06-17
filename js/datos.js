@@ -259,6 +259,7 @@ async function cargar() {
     if (CAT[pid] && typeof v.pct_ocupacion === 'number') {
       datos[pid] = {
         libres:    v.libres,
+        ocupadas:  v.ocupadas,
         pct:       v.pct_ocupacion,
         tendencia: 0,
         fuente:    'vision',
@@ -344,7 +345,7 @@ function actualizarUI(datos, fuente) {
         <div class="bar-wrap"><div class="bar ${barClass(pct)}" style="width:${pctP}%"></div></div>
         <div class="card-nums">
           <span><b>${d.libres}</b> libres</span>
-          <span><b>${cap - d.libres}</b> ocupadas</span>
+          <span><b>${d.ocupadas ?? (cap - d.libres)}</b> ocupadas</span>
           <span><b>${pctP}%</b> ocupado</span>
         </div>
         <div class="card-pred">${textoPrediccion(id, pct)}</div>

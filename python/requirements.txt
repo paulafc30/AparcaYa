@@ -18,8 +18,10 @@ joblib==1.4.2          # serialización del modelo (.pkl)
 # Opcional: scheduling avanzado (alternativa al while+sleep del main.py)
 APScheduler==3.10.4
 
-# Visión artificial
+# Visión artificial (procesado de imagen)
 opencv-python==4.10.0.84
 
-# Deep Learning
-tensorflow==2.16.1
+# Deep Learning — solo necesario para train_vision.py y predict_vision.py
+# No se instala en GitHub Actions (demasiado pesado para el runner de 5 min)
+# Instalar manualmente en local: pip install tensorflow==2.16.1
+# tensorflow==2.16.1
