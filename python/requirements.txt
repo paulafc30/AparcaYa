@@ -17,3 +17,9 @@ joblib==1.4.2          # serialización del modelo (.pkl)
 
 # Opcional: scheduling avanzado (alternativa al while+sleep del main.py)
 APScheduler==3.10.4
+
+# Visión artificial
+opencv-python==4.10.0.84
+
+# Deep Learning
+tensorflow==2.16.1
