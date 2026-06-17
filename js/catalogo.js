@@ -22,7 +22,7 @@
 // Coordenadas verificadas contra el CSV oficial ocupappublicosmun/catalogo.csv
 const CAT = {
   CE: { n: 'Cervantes',           dir: 'C/ Cervantes',             lat: 36.7209,    lng: -4.4119,   cap: 409 },
-  MA: { n: 'Salitre',             dir: 'C/ Salitre',               lat: 36.7131,    lng: -4.4278,   cap: 435 },
+  MA: { n: 'Pz. de la Marina',    dir: 'Plaza de la Marina',       lat: 36.7176,    lng: -4.4200,   cap: 450 },
   CA: { n: 'Camas',               dir: 'C/ Camas',                 lat: 36.7202,    lng: -4.4245,   cap: 350 },
   PA: { n: 'El Palo',             dir: 'C/ Alonso Carrillo',       lat: 36.7210,    lng: -4.3607,   cap: 127 },
   AN: { n: 'Av. de Andalucía',    dir: 'Av. de Andalucía',         lat: 36.7173,    lng: -4.4277,   cap: 613 },
@@ -30,7 +30,8 @@ const CAT = {
   AL: { n: 'Alcazaba',            dir: 'C/ Alcazabilla',           lat: 36.7224,    lng: -4.4165,   cap: 378 },
   SJ: { n: 'San Juan de la Cruz', dir: 'C/ Lemberg Ruiz',          lat: 36.7179,    lng: -4.4333,   cap: 624 },
   CY: { n: 'Carlos Haya',         dir: 'Av. Santa Rosa de Lima',   lat: 36.7119,    lng: -4.4410,   cap: 439 },
-  PB: { n: 'Pío Baroja',          dir: 'Av. Pío Baroja - El Palo', lat: 36.7190,    lng: -4.3648,   cap: 261 },
+  PB: { n: 'Pío Baroja',          dir: 'Av. Pío Baroja - El Palo', lat: 36.7190,    lng: -4.3648,   cap: 261 },  
+  SA: { n: 'Salitre',             dir: 'C/ Salitre',               lat: 36.7136,    lng: -4.42626,   cap: 435 },
 };
 
 // ── 2. TIPO DE PARKING ────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ const TIPO = {
   MA: 'centro',    // Puerto y paseo marítimo
   AL: 'centro',    // Alcazaba, Catedral, museos
   TE: 'centro',    // Barrio histórico
+  SA: 'centro',    // Vialia
   CY: 'hospital',  // Hospital Virgen de la Victoria (Carlos Haya)
   PA: 'playa',     // El Palo, playa este
   PB: 'playa',     // Pedregalejo / Pío Baroja

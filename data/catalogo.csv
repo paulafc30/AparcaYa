@@ -1,6 +1,6 @@
 id,nombre,direccion,latitude,longitude,capacidad_total
 CE,Cervantes,Calle Cervantes Málaga,36.7197,-4.4105,409
-MA,Salitre,Calle Salitre Málaga,36.7131,-4.4278,435
+MA,Pz. de la Marina,Plaza de la Marina Málaga,36.717647,-4.420064,450
 CA,Camas,Calle Camas Málaga,36.7127,-4.4254,350
 PA,El Palo,Calle Alonso Carrillo Málaga,36.7210,-4.3609,127
 AN,Av. de Andalucía,Avenida de Andalucía Málaga,36.7171,-4.4279,613
@@ -9,3 +9,4 @@ AL,Alcazaba,Calle Alcazabilla Málaga,36.7224,-4.4165,378
 SJ,San Juan de la Cruz,Calle Lemberg Ruiz Málaga,36.7179,-4.4333,624
 CY,Carlos Haya,Avenida Santa Rosa de Lima Málaga,36.7162,-4.4488,439
 PB,Pío Baroja,Avenida Pío Baroja El Palo Málaga,36.7204,-4.3644,261
+SA,Salitre,Calle Salitre Málaga,36.713697,-4.426256,435

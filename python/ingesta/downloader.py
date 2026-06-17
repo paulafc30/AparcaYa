@@ -49,7 +49,7 @@ HEADERS = {
 # Deben coincidir con CAPACIDADES en predict.py y cap en catalogo.js.
 CAPACIDADES = {
     "CE": 409,  # Cervantes
-    "MA": 435,  # Salitre
+    "MA": 450,  # Plaza de la Marina
     "CA": 350,  # Camas
     "PA": 127,  # El Palo
     "AN": 613,  # Av. de Andalucía
@@ -58,6 +58,7 @@ CAPACIDADES = {
     "SJ": 624,  # San Juan de la Cruz
     "CY": 439,  # Carlos Haya
     "PB": 261,  # Pío Baroja
+    "SA": 435,  # Salitre    
 }
 
 logging.basicConfig(
