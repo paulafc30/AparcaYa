@@ -20,11 +20,6 @@ URL_OCUPACION = (
     "https://datosabiertos.malaga.eu/recursos/aparcamientos/"
     "ocupappublicosmun/ocupappublicosmun.csv"
 )
-URL_CATALOGO = (
-    "https://datosabiertos.malaga.eu/recursos/aparcamientos/"
-    "ocupappublicosmun/catalogo.csv"
-)
-
 # Raíz del proyecto (dos niveles arriba de este archivo)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR      = PROJECT_ROOT / "data" / "raw"
@@ -123,33 +118,21 @@ def descargar_ocupacion() -> pd.DataFrame:
 
 def descargar_catalogo() -> pd.DataFrame:
     """
-    Descarga (o lee desde disco) el catálogo estático de aparcamientos con
-    nombre, dirección y coordenadas.
-    Incluye la capacidad total estimada de cada aparcamiento.
+    Lee el catálogo de aparcamientos desde el CSV local del proyecto.
+    El archivo data/catalogo.csv lo mantiene Luisa manualmente — no se
+    descarga de internet para evitar sobreescribir sus entradas personalizadas
+    (SA, SC, coordenadas corregidas, etc.).
+
+    Lanza FileNotFoundError si el CSV no existe en el proyecto.
     """
-    # Si ya existe en disco usamos la versión local (se descarga una sola vez)
     ruta_local = PROJECT_ROOT / "data" / "catalogo.csv"
-    if ruta_local.exists():
-        logger.info("Catálogo leído desde disco local.")
-        return pd.read_csv(ruta_local)
-
-    try:
-        response = requests.get(URL_CATALOGO, headers=HEADERS, timeout=TIMEOUT)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        logger.error(f"Error descargando catálogo: {e}")
-        raise
-
-    from io import StringIO
-    df = pd.read_csv(StringIO(response.text))
-
-    # Capacidades de rotación verificadas (smassa.eu, junio 2026).
-    # Fuente única: constante CAPACIDADES definida en este módulo,
-    # sincronizada con predict.py y catalogo.js.
-    df["capacidad_total"] = df["id"].map(CAPACIDADES)
-
-    df.to_csv(ruta_local, index=False)
-    logger.info(f"Catálogo guardado en {ruta_local}")
+    if not ruta_local.exists():
+        raise FileNotFoundError(
+            f"Catálogo no encontrado: {ruta_local}\n"
+            "Asegúrate de que data/catalogo.csv existe en el repositorio."
+        )
+    df = pd.read_csv(ruta_local)
+    logger.info(f"Catálogo leído desde {ruta_local.name}  ({len(df)} entradas)")
     return df
 
 

@@ -1,4 +1,7 @@
-{
+// Datos de visión artificial para SACABA (SC)
+// Generado por predict_vision.py a partir de la cámara TV-16.
+// Este archivo se actualiza automáticamente por el pipeline de visión.
+window.ESTADO_VISION = {
     "parking_id": "SC",
     "plazas": {
         "plaza_1": "LIBRE",
@@ -15,4 +18,4 @@
     "ocupadas": 6,
     "total": 9,
     "pct_ocupacion": 0.6667
-}
+};

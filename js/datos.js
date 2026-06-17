@@ -3,22 +3,19 @@
  * =========
  * Carga de datos de ocupación en tiempo real y actualización de la interfaz.
  *
- * Este módulo implementa un sistema de fallback en cascada con 3 niveles:
+ * Fuentes de datos (en orden de prioridad):
  *
  *   1. Supabase (base de datos en la nube)
- *      → Los datos más frescos, actualizados cada 5 min por el GitHub Action.
- *      → Requiere que el Action esté configurado con las credenciales correctas.
+ *      → Datos actualizados cada 5 min por el GitHub Action.
  *
  *   2. CSV del Ayuntamiento de Málaga (datos abiertos en tiempo real)
- *      → Se intenta primero directamente, luego a través de un proxy CORS
- *        (allorigins.win) porque los navegadores bloquean peticiones entre dominios.
+ *      → Se intenta directamente y luego por proxy CORS si falla.
  *      → Actualizado cada ~1 minuto por el Ayuntamiento.
  *
- *   3. Datos de demostración generados localmente
- *      → Se calculan en el momento usando los patrones de catalogo.js.
- *      → Útil para presentaciones sin conexión o cuando los servicios fallan.
+ * Si ambas fuentes fallan → se muestra error en la interfaz.
+ * No hay datos simulados ni patrones de fallback.
  *
- * Depende de: catalogo.js (CAT, TIPO, PATRONES), prediccion.js, mapa.js, app.js
+ * Depende de: catalogo.js (CAT, TIPO), prediccion.js, mapa.js, app.js
  */
 
 // ── Configuración ─────────────────────────────────────────────────────────────
@@ -44,9 +41,6 @@ const SUPABASE_TABLA = 'parking_estado';
 const SUPABASE_ACTIVO = SUPABASE_KEY && !SUPABASE_KEY.startsWith('sb_secret_');
 
 // ── Almacén global de datos actuales ─────────────────────────────────────────
-// Guardamos los datos en window._datosActuales para que chatbot.js pueda
-// consultarlos cuando el usuario escribe un destino, sin tener que volver
-// a hacer una petición de red.
 window._datosActuales = {};
 
 // ── Mapeo nombre CSV → ID interno ─────────────────────────────────────────────
@@ -79,31 +73,6 @@ const NOMBRE_A_ID = {
   'Pío Baroja': 'PB',
   'Pio Baroja': 'PB',
 };
-
-// ── Datos de demostración (fallback) ─────────────────────────────────────────
-/**
- * Genera datos de ocupación realistas a partir de los patrones horarios.
- * No hace ninguna petición de red — calcula los valores en el momento
- * mirando qué hora y día es ahora y aplicando el patrón correspondiente.
- * Útil para demos sin conexión o cuando Supabase y el CSV fallan.
- * @returns {object} { CE: {libres, pct, tendencia}, MA: ..., ... }
- */
-function datosDemo() {
-  const now = new Date();
-  const hora = now.getHours();
-  const dia = now.getDay();
-  const demo = {};
-  Object.entries(CAT).forEach(([id, c]) => {
-    // Los parkings vision: true (p.ej. SACABA) no tienen datos de demo;
-    // sus datos vienen exclusivamente del pipeline de visión artificial.
-    if (c.vision) return;
-    const tipo = TIPO[id] || 'centro';
-    const pct = PATRONES[tipo][hora][dia];
-    const libres = Math.round(c.cap * (1 - pct));
-    demo[id] = { libres, pct, tendencia: 0 };
-  });
-  return demo;
-}
 
 // ── Parser del CSV del Ayuntamiento ──────────────────────────────────────────
 /**
@@ -161,11 +130,12 @@ function parsearCSV(csv) {
  * @returns {Promise<object>} { CE: {libres, pct, tendencia}, ... }
  * @throws {Error} Si Supabase no responde o la key es incorrecta
  */
+// Timestamp real del último dato en Supabase (no la hora del navegador)
+let _tsSupabase = null;
+
 async function cargarDesdeSupabase() {
-  // Usamos la vista 'parking_ultimo' (definida en schema.sql) que hace
-  // DISTINCT ON (parking_id) ORDER BY ts DESC — garantiza exactamente 1 fila
-  // por parking, sin riesgo de traer duplicados o perder alguno con limit=10.
-  const url = `${SUPABASE_URL}/rest/v1/parking_ultimo?select=parking_id,libres,pct_ocupacion,tendencia`;
+  // Incluimos 'ts' para mostrar cuándo se generó el dato, no cuándo se descargó.
+  const url = `${SUPABASE_URL}/rest/v1/parking_ultimo?select=parking_id,libres,pct_ocupacion,tendencia,ts`;
   const resp = await fetch(url, {
     headers: {
       apikey: SUPABASE_KEY,
@@ -175,6 +145,7 @@ async function cargarDesdeSupabase() {
   if (!resp.ok) throw new Error('Supabase error ' + resp.status);
   const rows = await resp.json();
   const datos = {};
+  let tsMax = null;
   rows.forEach((r) => {
     if (!CAT[r.parking_id]) return;
     datos[r.parking_id] = {
@@ -182,7 +153,11 @@ async function cargarDesdeSupabase() {
       pct:       r.pct_ocupacion,
       tendencia: r.tendencia ?? 0,
     };
+    // Guardamos el timestamp más reciente entre todos los parkings
+    const t = r.ts ? new Date(r.ts) : null;
+    if (t && (!tsMax || t > tsMax)) tsMax = t;
   });
+  _tsSupabase = tsMax;
   return datos;
 }
 
@@ -249,19 +224,18 @@ async function cargar() {
   if (SUPABASE_ACTIVO) {
     try {
       const sb = await cargarDesdeSupabase();
-      // Solo aceptar si devuelve datos reales (tabla no vacía)
       if (Object.keys(sb).length >= 5) {
         datos = sb;
         fuente = 'Supabase';
       } else {
-        console.warn('[datos] Supabase conectado pero tabla parking_estado vacía — usando CSV');
+        console.warn('[datos] Supabase conectado pero tabla vacía — intentando CSV');
       }
     } catch (e) {
       console.warn('[datos] Supabase falló:', e.message);
     }
   }
 
-  // 2. CSV del Ayuntamiento (fuente principal cuando Supabase no está activo)
+  // 2. CSV del Ayuntamiento
   if (!datos) {
     try {
       datos = await cargarDesdeCSV();
@@ -271,22 +245,28 @@ async function cargar() {
     }
   }
 
-  // 3. Demo — solo como último recurso
+  // Sin datos reales → mostrar error, no inventar nada
   if (!datos) {
-    datos = datosDemo();
-    fuente = 'demo';
+    mostrarError('No se puede conectar con el Ayuntamiento ni con Supabase. Comprueba tu conexión.');
+    return;
   }
 
-  // Completar parkings sin datos con fallback de patrones.
-  // Los parkings vision:true se omiten si no hay dato real — muestran '-' en la UI.
-  const demo = datosDemo();
-  Object.keys(CAT).forEach((id) => {
-    if (!datos[id] && !CAT[id].vision) datos[id] = demo[id];
-  });
+  // Cargar datos de visión artificial (SACABA / SC) desde window.ESTADO_VISION,
+  // que carga data/estado_vision.js vía <script> y funciona con file:// y servidores.
+  const v = window.ESTADO_VISION;
+  if (v) {
+    const pid = v.parking_id || 'SC';
+    if (CAT[pid] && typeof v.pct_ocupacion === 'number') {
+      datos[pid] = {
+        libres:    v.libres,
+        pct:       v.pct_ocupacion,
+        tendencia: 0,
+        fuente:    'vision',
+      };
+    }
+  }
 
   window._datosActuales = datos;
-
-  // Actualizar UI
   actualizarUI(datos, fuente);
 }
 
@@ -300,65 +280,77 @@ async function cargar() {
  * @param {object} datos  - { CE: {pct, libres}, MA: ..., ... }
  * @param {string} fuente - De dónde vienen los datos ('Supabase' | 'Ayuntamiento' | 'demo')
  */
+/**
+ * Muestra un mensaje de error en la interfaz cuando no hay datos reales.
+ * No inventa datos ni usa patrones — muestra el problema claramente.
+ */
+function mostrarError(msg) {
+  document.getElementById('last-update').textContent = '⚠️ Sin datos';
+  const lista = document.getElementById('parking-list');
+  lista.innerHTML = `
+    <div style="padding:20px;text-align:center;color:#ef4444;font-size:13px;line-height:1.6">
+      ⚠️ ${msg}
+    </div>`;
+}
+
 function actualizarUI(datos, fuente) {
   const now = new Date();
-  const hora = now.toLocaleTimeString('es-ES', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const esDemo = fuente === 'demo';
+  const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-  // Timestamp con fuente de datos
-  const labelFuente =
-    fuente === 'Supabase'
-      ? '🟢 Supabase'
-      : fuente === 'Ayuntamiento'
-        ? '🟢 Ayuntamiento'
-        : '🟡 Simulación';
-  document.getElementById('last-update').textContent =
-    `${hora} · ${labelFuente}`;
-
-  // Banner de aviso si estamos en modo simulación
-  let banner = document.getElementById('demo-banner');
-  if (esDemo) {
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'demo-banner';
-      banner.style.cssText =
-        'background:#fef3c7;color:#92400e;font-size:11px;padding:6px 14px;text-align:center;border-bottom:1px solid #fcd34d;';
-      document.querySelector('.sidebar').prepend(banner);
-    }
-    banner.textContent =
-      '⚠️ Sin conexión con el Ayuntamiento — mostrando estimación por patrones horarios';
-  } else if (banner) {
-    banner.remove();
+  // Si los datos vienen de Supabase, mostramos el timestamp REAL del dato
+  // (cuándo lo capturó el GitHub Action), no la hora del navegador.
+  // Así el usuario ve la antigüedad real de la información.
+  let labelHora = hora;
+  if (fuente === 'Supabase' && _tsSupabase) {
+    labelHora = _tsSupabase.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
+  document.getElementById('last-update').textContent = `datos de las ${labelHora}`;
+
+  // Quitar banner de error previo si lo hubiera
+  document.getElementById('error-banner')?.remove();
 
   // Tarjetas del sidebar
   const lista = document.getElementById('parking-list');
   lista.innerHTML = '';
   Object.entries(CAT).forEach(([id, c]) => {
-    const d = datos[id] || { libres: 0, pct: 0, tendencia: 0 };
-    const pct = d.pct;
-    const pctP = Math.round(pct * 100);
+    const d = datos[id];   // undefined si el parking no tiene dato real
     const div = document.createElement('div');
     div.className = 'card';
     div.id = 'card-' + id;
     div.onclick = () => focusPark(id);
-    div.innerHTML = `
-      <div class="card-top">
-        <span class="card-name">${c.n}</span>
-        <span class="badge badge-${badgeClass(pct)}">${estado(pct)}</span>
-      </div>
-      <div class="card-addr">${c.dir}</div>
-      <div class="bar-wrap"><div class="bar ${barClass(pct)}" style="width:${pctP}%"></div></div>
-      <div class="card-nums">
-        <span><b>${d.libres}</b> libres</span>
-        <span><b>${c.cap - d.libres}</b> ocupadas</span>
-        <span><b>${pctP}%</b> ocupado</span>
-      </div>
-      <div class="card-pred">${textoPrediccion(id, pct)}</div>
-    `;
+
+    if (!d) {
+      // Parking en catálogo pero sin dato real (p.ej. SC sin visión activa)
+      div.innerHTML = `
+        <div class="card-top">
+          <span class="card-name">${c.n}</span>
+          <span class="badge badge-sindata">SIN DATOS</span>
+        </div>
+        <div class="card-addr">${c.dir}</div>
+        <div class="bar-wrap"><div class="bar" style="width:0%;background:#e2e8f0"></div></div>
+        <div class="card-nums" style="color:#94a3b8">— libres &nbsp;·&nbsp; — ocupadas &nbsp;·&nbsp; —%</div>
+        <div class="card-pred" style="color:#94a3b8">📡 Esperando datos en tiempo real</div>
+      `;
+    } else {
+      const pct  = d.pct;
+      const pctP = Math.round(pct * 100);
+      const cap  = c.cap || (d.libres + (d.ocupadas ?? 0));
+      div.innerHTML = `
+        <div class="card-top">
+          <span class="card-name">${c.n}</span>
+          <span class="badge badge-${badgeClass(pct)}">${estado(pct)}</span>
+        </div>
+        <div class="card-addr">${c.dir}</div>
+        <div class="bar-wrap"><div class="bar ${barClass(pct)}" style="width:${pctP}%"></div></div>
+        <div class="card-nums">
+          <span><b>${d.libres}</b> libres</span>
+          <span><b>${cap - d.libres}</b> ocupadas</span>
+          <span><b>${pctP}%</b> ocupado</span>
+        </div>
+        <div class="card-pred">${textoPrediccion(id, pct)}</div>
+      `;
+    }
+
     lista.appendChild(div);
   });
 

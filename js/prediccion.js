@@ -189,12 +189,7 @@ function predecirHora(id, pctActual, horasDelante) {
 function textoPrediccion(id, pctActual) {
   const ml = _predML(id, 1);
 
-  if (!ml) {
-    const tendencia = window._datosActuales?.[id]?.tendencia;
-    if (tendencia === 'SUBIENDO') return '📈 Tendencia al alza · modelo iniciando';
-    if (tendencia === 'BAJANDO')  return '📉 Tendencia a la baja · modelo iniciando';
-    return '🤖 Iniciando modelo ML...';
-  }
+  if (!ml) return '';
 
   const e0  = estado(pctActual);
   const e1  = ml.estado_previsto;
