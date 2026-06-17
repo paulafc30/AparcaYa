@@ -69,12 +69,18 @@ function crearIcono(pct) {
 function popupHTML(id, d) {
   const c   = CAT[id];
   const pct = d.pct;
+  const imgHtml = c.camara
+    ? `<img src="${c.camara}" style="width:220px;height:130px;object-fit:cover;border-radius:6px;margin-bottom:6px;display:block" onerror="this.style.display='none'">`
+    : '';
   return `
-    <b>${c.n}</b><br>
-    <span style="color:${colorEstado(pct)};font-weight:700">${estado(pct)}</span>
-    · ${d.libres} plazas libres<br>
-    <span style="font-size:11px;color:#64748b">${Math.round(pct * 100)}% ocupado</span><br>
-    <span style="font-size:11px;color:#64748b">${textoPrediccion(id, pct)}</span>
+    <div style="min-width:${c.camara ? '224px' : 'auto'}">
+      ${imgHtml}
+      <b>${c.n}</b><br>
+      <span style="color:${colorEstado(pct)};font-weight:700">${estado(pct)}</span>
+      · ${d.libres} plazas libres<br>
+      <span style="font-size:11px;color:#64748b">${Math.round(pct * 100)}% ocupado</span><br>
+      <span style="font-size:11px;color:#64748b">${textoPrediccion(id, pct)}</span>
+    </div>
   `;
 }
 

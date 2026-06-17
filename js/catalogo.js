@@ -36,7 +36,8 @@ const CAT = {
   // Fuente: Ayuntamiento de Málaga, cámara TV16-SACABA (movilidad.malaga.eu, distrito 7)
   // cap: determinado por marcador_plazas.py al marcar las plazas visibles en cámara
   // ⚠️ coords aproximadas — verificar en https://movilidad.malaga.eu/es/servicios/camaras-de-trafico/distrito-7/tv-16/
-  SC: { n: 'SACABA',              dir: 'Av. Manuel Alvar',          lat: 36.6803,    lng: -4.4485,    cap: 0, vision: true },
+  SC: { n: 'SACABA',              dir: 'Av. Manuel Alvar',          lat: 36.6803,    lng: -4.4485,    cap: 0, vision: true,
+        camara: 'https://ctraficomovilidad.malaga.eu/recursos/movilidad/camaras_trafico/TV-16.jpg' },
 };
 
 // ── 2. TIPO DE PARKING ────────────────────────────────────────────────────────
