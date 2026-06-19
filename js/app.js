@@ -19,8 +19,8 @@
  *   no daría datos más frescos pero sí haría más peticiones innecesarias.
  */
 
-// Intervalo de refresco: 60 000 ms = 1 minuto
-const INTERVALO_MS = 60 * 1000;
+// Intervalo de refresco: 30 segundos
+const INTERVALO_MS = 30 * 1000;
 
 /**
  * Función principal de arranque.
@@ -28,6 +28,16 @@ const INTERVALO_MS = 60 * 1000;
  * todos los recursos (HTML, CSS, scripts externos como Leaflet).
  * Usar 'load' en vez de 'DOMContentLoaded' garantiza que Leaflet ya existe.
  */
+async function recargar() {
+  const btn = document.getElementById('btn-reload');
+  btn.classList.add('girando');
+  btn.disabled = true;
+  await cargarPredicciones().catch(() => {});
+  await cargar();
+  btn.classList.remove('girando');
+  btn.disabled = false;
+}
+
 window.addEventListener('load', async () => {
   // 1. Crear el mapa interactivo en el div #map del HTML
   initMapa();
