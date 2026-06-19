@@ -305,7 +305,7 @@ function actualizarUI(datos, fuente) {
   if (fuente === 'Supabase' && _tsSupabase) {
     labelHora = _tsSupabase.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
-  document.getElementById('last-update').textContent = `datos de las ${labelHora}`;
+  document.getElementById('last-update').textContent = `datos de las ${hora}`;
 
   // Quitar banner de error previo si lo hubiera
   document.getElementById('error-banner')?.remove();

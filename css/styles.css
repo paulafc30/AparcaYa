@@ -23,6 +23,15 @@ header {
 .logo span { color: #38bdf8; }
 .header-right { text-align: right; font-size: 12px; opacity: .75; }
 #last-update { color: #38bdf8; font-weight: 600; }
+#btn-reload {
+  background: none; border: none; color: #38bdf8;
+  font-size: 14px; cursor: pointer; padding: 0 2px;
+  opacity: .8; transition: opacity .15s, transform .3s;
+  vertical-align: middle;
+}
+#btn-reload:hover { opacity: 1; }
+#btn-reload.girando { animation: girar .6s linear; }
+@keyframes girar { to { transform: rotate(360deg); } }
 
 /* ── Layout principal ─────────────────────────────────────────────────────── */
 .main {
