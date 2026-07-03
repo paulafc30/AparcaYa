@@ -318,7 +318,7 @@ function actualizarUI(datos, fuente) {
     const div = document.createElement('div');
     div.className = 'card';
     div.id = 'card-' + id;
-    div.onclick = () => focusPark(id);
+    div.onclick = () => { focusPark(id); if (typeof guardarConsulta === 'function') guardarConsulta(id); };
 
     if (!d) {
       // Parking en catálogo pero sin dato real (p.ej. SC sin visión activa)

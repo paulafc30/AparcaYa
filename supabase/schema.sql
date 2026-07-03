@@ -111,3 +111,72 @@ CREATE POLICY "Lectura pública predicciones" ON parking_predicciones
 
 CREATE POLICY "Escritura service role predicciones" ON parking_predicciones
   FOR INSERT WITH CHECK (auth.role() = 'service_role');
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Tabla de historial de usuario (parkings consultados)
+-- Requiere Supabase Auth activo en el proyecto.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_historial (
+  id             BIGSERIAL    PRIMARY KEY,
+  user_id        UUID         NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  parking_id     TEXT         NOT NULL,
+  parking_nombre TEXT         NOT NULL,
+  estado         TEXT,                    -- LIBRE | DISPONIBLE | LLENO en el momento
+  pct_ocupacion  NUMERIC(5,4),            -- % ocupación en el momento de la consulta
+  libres         INTEGER,
+  ts             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_historial_user_ts
+  ON user_historial (user_id, ts DESC);
+
+-- RLS: cada usuario solo ve y gestiona su propio historial
+ALTER TABLE user_historial ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuario ve su historial" ON user_historial
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Usuario inserta en su historial" ON user_historial
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Usuario borra su historial" ON user_historial
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Tabla de perfil de usuario (nombre para mostrar)
+-- Se rellena automáticamente en el registro desde el frontend.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_perfil (
+  user_id        UUID         PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nombre         TEXT         NOT NULL DEFAULT '',
+  created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE user_perfil ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuario ve su perfil" ON user_perfil
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Usuario actualiza su perfil" ON user_perfil
+  FOR ALL USING (auth.uid() = user_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Función RPC: eliminar cuenta propia (RGPD)
+-- user_historial y user_perfil se borran en cascada por la FK ON DELETE CASCADE.
+-- Llamar desde el frontend: supabase.rpc('delete_my_account')
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION delete_my_account()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Las tablas user_historial y user_perfil se borran automáticamente en cascada.
+  DELETE FROM auth.users WHERE id = auth.uid();
+END;
+$$;
+
+-- Solo el usuario autenticado puede llamar a esta función
+REVOKE ALL ON FUNCTION delete_my_account() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION delete_my_account() TO authenticated;

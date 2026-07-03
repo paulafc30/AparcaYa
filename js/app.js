@@ -3,61 +3,58 @@
  * =======
  * Punto de entrada y orquestador principal de AparcaYa.
  *
- * Este archivo es el "director de orquesta": arranca todo en el orden correcto
- * y mantiene el bucle de actualización. Es intencionalmente corto —
- * la lógica real está en los otros módulos.
- *
  * Orden de arranque:
  *   1. El navegador carga index.html y ejecuta los <script> en orden:
- *      catalogo.js → prediccion.js → mapa.js → chatbot.js → datos.js → app.js
- *   2. Cuando todo está cargado, el evento 'load' dispara este código.
- *   3. Se inicializa el mapa, se cargan los primeros datos y se programa
- *      la actualización automática cada 60 segundos.
- *
- * ¿Por qué 60 segundos y no menos?
- *   El CSV del Ayuntamiento se actualiza cada ~1 minuto. Pedir más rápido
- *   no daría datos más frescos pero sí haría más peticiones innecesarias.
+ *      catalogo.js → prediccion.js → mapa.js → chatbot.js → datos.js → historial.js → auth.js → app.js
+ *   2. El evento 'load' llama a initAuth() (auth.js), que comprueba si hay sesión
+ *      activa en Supabase y muestra el login overlay o el dashboard directamente.
+ *   3. Una vez el usuario entra (login, registro o invitado), initDashboard() arranca
+ *      el mapa, carga los datos y programa el refresco automático cada 30 segundos.
  */
 
-// Intervalo de refresco: 30 segundos
 const INTERVALO_MS = 30 * 1000;
 
 /**
- * Función principal de arranque.
- * Se ejecuta automáticamente cuando el navegador ha terminado de cargar
- * todos los recursos (HTML, CSS, scripts externos como Leaflet).
- * Usar 'load' en vez de 'DOMContentLoaded' garantiza que Leaflet ya existe.
+ * Inicializa el dashboard. Llamada desde auth.js tras autenticación exitosa.
+ * No se llama en el evento 'load' directamente para que el mapa solo se cree
+ * cuando el div #map ya es visible (evita bugs de Leaflet con display:none).
  */
-async function recargar() {
-  const btn = document.getElementById('btn-reload');
-  btn.classList.add('girando');
-  btn.disabled = true;
-  await cargarPredicciones().catch(() => {});
-  await cargar();
-  btn.classList.remove('girando');
-  btn.disabled = false;
-}
-
-window.addEventListener('load', async () => {
-  // 1. Crear el mapa interactivo en el div #map del HTML
+async function initDashboard() {
+  // Mapa interactivo
   initMapa();
 
-  // Contador dinámico en el header — se lee de CAT para actualizarse solo
-  // si se añaden o eliminan parkings del catálogo.
+  // Contador dinámico de parkings en el header
   const countEl = document.getElementById('parking-count');
   if (countEl) countEl.textContent = Object.keys(CAT).length;
 
-  // 2. Descarga predicciones ML de Supabase ANTES de renderizar las tarjetas.
-  //    Así las cards muestran [IA·alta] desde el primer render, no 60s después.
+  // Predicciones ML antes del primer render para que las cards ya las muestren
   await cargarPredicciones().catch(() => {});
 
-  // 3. Primera carga de datos: rellena tarjetas del sidebar y marcadores del mapa
+  // Primera carga de datos reales
   await cargar();
 
-  // 4. Programa las actualizaciones automáticas cada minuto
-  //    Cada ciclo también renueva las predicciones ML para que no queden obsoletas.
+  // Refresco automático cada 30 segundos
   setInterval(async () => {
     cargarPredicciones().catch(() => {});
     await cargar();
   }, INTERVALO_MS);
+}
+
+/**
+ * Botón de recarga manual (↻ en el header).
+ */
+async function recargar() {
+  const btn = document.getElementById('btn-reload');
+  if (btn) { btn.classList.add('girando'); btn.disabled = true; }
+  await cargarPredicciones().catch(() => {});
+  await cargar();
+  if (btn) { btn.classList.remove('girando'); btn.disabled = false; }
+}
+
+/**
+ * Arranque: esperar a que todos los recursos estén listos y delegar en auth.js.
+ * auth.js decide si mostrar el login o ir directo al dashboard (sesión guardada).
+ */
+window.addEventListener('load', () => {
+  initAuth();
 });

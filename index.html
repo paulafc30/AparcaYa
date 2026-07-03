@@ -9,31 +9,93 @@
 </head>
 <body>
 
-<header>
-  <div class="logo">Aparca<span>Ya</span></div>
-  <div class="header-right">
-    <div>🅿️ <span id="parking-count"></span> aparcamientos · Málaga</div>
-    <div>Última actualización: <span id="last-update">–</span> <button onclick="recargar()" id="btn-reload" title="Actualizar ahora">↻</button></div>
+<!-- ══════════════════════════════════════════════════════
+     PANTALLA DE LOGIN / REGISTRO
+     ══════════════════════════════════════════════════════ -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-card">
+
+    <div class="login-logo">Aparca<span>Ya</span></div>
+    <div class="login-subtitle">Aparcamiento inteligente en Málaga</div>
+
+    <!-- Formulario: iniciar sesión -->
+    <div id="form-login" style="display:flex;flex-direction:column;gap:10px">
+      <input id="login-email"    type="email"    placeholder="Email"      class="login-input" onkeydown="if(event.key==='Enter')iniciarSesion()">
+      <input id="login-password" type="password" placeholder="Contraseña" class="login-input" onkeydown="if(event.key==='Enter')iniciarSesion()">
+      <button id="btn-login" class="login-btn" onclick="iniciarSesion()">Iniciar sesión</button>
+      <p class="login-toggle">¿No tienes cuenta? <a onclick="mostrarFormRegistro()">Regístrate</a></p>
+    </div>
+
+    <!-- Formulario: registro -->
+    <div id="form-register" style="display:none;flex-direction:column;gap:10px">
+      <input id="reg-nombre"   type="text"     placeholder="Nombre"     class="login-input">
+      <input id="reg-email"    type="email"    placeholder="Email"      class="login-input">
+      <input id="reg-password" type="password" placeholder="Contraseña (mín. 6 caracteres)" class="login-input" onkeydown="if(event.key==='Enter')registrarse()">
+      <button id="btn-register" class="login-btn" onclick="registrarse()">Crear cuenta</button>
+      <p class="login-toggle">¿Ya tienes cuenta? <a onclick="mostrarFormLogin()">Inicia sesión</a></p>
+    </div>
+
+    <!-- Mensaje feedback -->
+    <div id="login-msg" class="login-msg" style="display:none"></div>
+
+    <div class="login-divider"><span>o</span></div>
+
+    <button class="login-btn-guest" onclick="entrarComoInvitado()">Continuar como invitado</button>
+    <p class="login-guest-note">Sin cuenta no se guarda tu historial de consultas.</p>
+
   </div>
-</header>
+</div>
 
-<div class="main">
+<!-- ══════════════════════════════════════════════════════
+     APP PRINCIPAL (dashboard)
+     ══════════════════════════════════════════════════════ -->
+<div id="app-wrapper" style="display:none;flex-direction:column;height:100vh">
 
-  <div class="sidebar">
-    <div class="sidebar-title">🅿️ Ocupación en tiempo real</div>
-    <div id="parking-list"><div class="loading">Cargando datos...</div></div>
+  <header>
+    <div class="logo">Aparca<span>Ya</span></div>
+    <div class="header-center">
+      <div>🅿️ <span id="parking-count"></span> aparcamientos · Málaga</div>
+      <div>Última actualización: <span id="last-update">–</span> <button onclick="recargar()" id="btn-reload" title="Actualizar ahora">↻</button></div>
+    </div>
+
+    <!-- Icono de usuario (esquina superior derecha) -->
+    <div class="user-btn-wrap" id="user-btn-wrap">
+      <button class="user-btn" id="user-btn" onclick="toggleUserMenu()" title="Mi cuenta">
+        <span id="user-avatar">👤</span>
+      </button>
+      <div class="user-menu" id="user-menu"></div>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-title">🅿️ Ocupación en tiempo real</div>
+      <div id="parking-list"><div class="loading">Cargando datos...</div></div>
+    </div>
+    <div class="right">
+      <div id="map"></div>
+    </div>
   </div>
 
-  <div class="right">
-    <div id="map"></div>
+</div><!-- /#app-wrapper -->
+
+<!-- ══════════════════════════════════════════════════════
+     PANEL LATERAL DE USUARIO
+     ══════════════════════════════════════════════════════ -->
+<div id="panel-overlay" class="panel-overlay" onclick="cerrarPanel()"></div>
+<div id="user-panel" class="user-panel">
+  <div class="panel-header">
+    <span id="panel-titulo">Mi cuenta</span>
+    <button class="panel-close" onclick="cerrarPanel()">✕</button>
   </div>
+  <div id="panel-cuerpo" class="panel-cuerpo"></div>
+</div>
 
-</div><!-- /.main -->
-
-<!-- Botón flotante de navegación (esquina inferior derecha) -->
+<!-- ══════════════════════════════════════════════════════
+     CHATBOT FLOTANTE
+     ══════════════════════════════════════════════════════ -->
 <button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Asistente AparcaYa"></button>
 
-<!-- Panel flotante del chatbot -->
 <div class="chat-panel" id="chat-panel">
   <div class="chat-header">
     <div style="display:flex;align-items:center;gap:8px">
@@ -56,19 +118,22 @@
   </div>
 </div>
 
-<!-- Librerías externas -->
+<!-- ══════════════════════════════════════════════════════
+     SCRIPTS
+     ══════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Datos de visión (cargado como script para funcionar con file://) -->
 <script src="data/estado_vision.js"></script>
 
-<!-- Módulos de la app (orden importante) -->
 <script src="js/catalogo.js"></script>
 <script src="js/prediccion.js"></script>
 <script src="js/mapa.js"></script>
 <script src="js/chatbot.js"></script>
 <script src="js/datos.js"></script>
+<script src="js/historial.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 
 </body>
