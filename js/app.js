@@ -58,3 +58,27 @@ async function recargar() {
 window.addEventListener('load', () => {
   initAuth();
 });
+
+/* ── Toggle sidebar (bottom sheet en mobile) ─────────────────────────────── */
+function toggleSidebar() {
+  const sidebar  = document.querySelector('.sidebar');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const fab      = document.getElementById('sidebar-fab');
+  if (!sidebar) return;
+
+  const abierto = sidebar.classList.toggle('sb-open');
+  overlay?.classList.toggle('open', abierto);
+
+  // Cambiar emoji del FAB según estado
+  if (fab) fab.textContent = abierto ? '✕' : '🅿️';
+}
+
+/* Cerrar sidebar al rotar pantalla (evita que quede abierto en landscape) */
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 767) {
+    document.querySelector('.sidebar')?.classList.remove('sb-open');
+    document.getElementById('sidebar-overlay')?.classList.remove('open');
+    const fab = document.getElementById('sidebar-fab');
+    if (fab) fab.textContent = '🅿️';
+  }
+});

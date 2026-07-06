@@ -428,3 +428,142 @@ header {
   font-size: 13px; color: #475569; cursor: pointer; line-height: 1.5;
 }
 .panel-check-label input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; accent-color: #dc2626; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════════════════
+
+   Breakpoints:
+     Desktop  ≥ 1024px  → layout actual (sidebar 320px fija + mapa)
+     Tablet   768–1023px → sidebar 260px
+     Mobile   ≤ 767px   → mapa a pantalla completa + sidebar como bottom sheet
+*/
+
+/* ── Tablet (768px – 1023px) ─────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  .main { grid-template-columns: 260px 1fr; }
+
+  .chat-panel { width: 300px; }
+
+  .user-panel { width: 320px; }
+  .user-panel.open { right: 0; }
+}
+
+/* ── Mobile (≤ 767px) ────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+
+  /* ── Body ── */
+  body { overflow: hidden; }
+
+  /* ── Header ── */
+  header { padding: 10px 14px; height: 52px; gap: 8px; }
+  .logo  { font-size: 19px; }
+
+  /* Ocultar texto del centro en móvil para no colapsar */
+  .header-center { display: none; }
+
+  /* ── Layout principal: solo mapa ── */
+  .main {
+    display: block;          /* una sola columna */
+    height: calc(100vh - 52px);
+    position: relative;
+  }
+
+  /* Mapa: ocupa todo */
+  .right { position: absolute; inset: 0; }
+  #map   { height: 100%; }
+
+  /* ── Sidebar: bottom sheet ── */
+  .sidebar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 65vh;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -6px 28px rgba(0,0,0,.18);
+    z-index: 900;
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    border-right: none;
+  }
+  .sidebar.sb-open { transform: translateY(0); }
+
+  /* Drag handle encima del título */
+  .sidebar::before {
+    content: '';
+    display: block;
+    width: 36px; height: 4px;
+    background: #cbd5e1;
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+
+  /* Overlay oscuro detrás del bottom sheet */
+  .sidebar-overlay {
+    display: block !important; /* activado solo en mobile */
+  }
+
+  /* ── FAB toggle sidebar (bottom izquierda) ── */
+  .sidebar-fab { display: flex !important; }
+
+  /* ── Chat panel: ancho completo ── */
+  .chat-panel {
+    width: 100%;
+    left: 0; right: 0;
+    bottom: 0;
+    border-radius: 18px 18px 0 0;
+    height: 70vh;
+    max-height: 70vh;
+  }
+
+  /* FAB del chat: ajustar posición cuando el sidebar está abierto */
+  .chat-fab { bottom: 20px; right: 16px; width: 48px; height: 48px; }
+
+  /* ── Panel lateral de usuario: ancho completo ── */
+  .user-panel { width: 100%; right: -100%; }
+  .user-panel.open { right: 0; }
+
+  /* ── Login: padding reducido en pantallas pequeñas ── */
+  .login-card { padding: 28px 20px; margin: 12px; max-width: 100%; }
+  .login-logo  { font-size: 24px; }
+
+  /* ── Menú usuario: anclar a la derecha sin salirse ── */
+  .user-menu { width: calc(100vw - 28px); right: 0; }
+
+  /* ── Ajuste del sidebar-title con el drag handle ── */
+  .sidebar-title { border-radius: 18px 18px 0 0; }
+}
+
+/* ── Overlay del sidebar (solo visible en mobile cuando está abierto) ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.3);
+  z-index: 899;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.sidebar-overlay.open { opacity: 1; pointer-events: all; }
+
+/* ── FAB toggle sidebar (oculto en desktop/tablet) ── */
+.sidebar-fab {
+  display: none;
+  position: fixed;
+  bottom: 24px; left: 24px;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(15,23,42,.45);
+  align-items: center; justify-content: center;
+  z-index: 1000;
+  transition: transform .18s, box-shadow .18s;
+  color: white;
+  font-size: 22px;
+  line-height: 1;
+}
+.sidebar-fab:hover { transform: scale(1.08); box-shadow: 0 6px 22px rgba(15,23,42,.55); }
+
